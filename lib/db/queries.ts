@@ -350,6 +350,7 @@ export async function createCategory(data: {
   color?: string
   emoji?: string
   is_default?: boolean
+  system_prompt?: string
 }) {
   const { data: cat, error } = await getServiceClient()
     .from('categories')
@@ -365,6 +366,7 @@ export async function updateCategory(id: string, data: {
   description?: string
   color?: string
   emoji?: string
+  system_prompt?: string
 }) {
   const { error } = await getServiceClient()
     .from('categories')

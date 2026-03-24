@@ -7,6 +7,7 @@ interface Category {
   name: string
   description: string
   emoji: string
+  system_prompt?: string
 }
 
 export async function classifyAndDraft(
@@ -18,7 +19,13 @@ export async function classifyAndDraft(
   ownerId?: string,
 ): Promise<ClassifyAndDraftResult & { promptVersion: string }> {
   const categoryList = categories
-    .map((c) => `- "${c.name}" (${c.emoji}): ${c.description}`)
+    .map((c) => {
+      let entry = `- "${c.name}" (${c.emoji}): ${c.description}`
+      if (c.system_prompt) {
+        entry += `\n  Draft instructions for "${c.name}": ${c.system_prompt}`
+      }
+      return entry
+    })
     .join('\n')
 
   const promptVersion = 'v3.0-production'
@@ -64,6 +71,8 @@ Bad drafts (DO NOT write like this):
 - "We appreciate your feedback and will take it into consideration."
 
 The draft should feel like a quick Slack reply from a competent coworker, not a customer service bot.
+
+When drafting a response, follow the category-specific draft instructions if provided. If no specific instructions exist for the matched category, use the general guidelines above.
 
 ## Response Format
 Return JSON:

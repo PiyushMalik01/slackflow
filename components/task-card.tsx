@@ -8,6 +8,13 @@ import { Button } from '@/components/ui/button'
 import { ChevronDown, ChevronUp, AlertTriangle, Trash2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
+interface Template {
+  id: string
+  name: string
+  content: string
+  category_id: string | null
+}
+
 interface TaskCardProps {
   task: {
     id: string
@@ -31,10 +38,13 @@ interface TaskCardProps {
   }
   categories?: { id: string; name: string; emoji: string; color: string }[]
   roles?: { id: string; name: string; type: string; status?: string }[]
+  templates?: Template[]
+  selected?: boolean
+  onToggleSelect?: () => void
   onTaskUpdated?: () => void
 }
 
-export function TaskCard({ task, categories, roles, onTaskUpdated }: TaskCardProps) {
+export function TaskCard({ task, categories, roles, templates, selected, onToggleSelect, onTaskUpdated }: TaskCardProps) {
   const [expanded, setExpanded] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
@@ -101,6 +111,15 @@ export function TaskCard({ task, categories, roles, onTaskUpdated }: TaskCardPro
     <>
       <div className="border rounded-lg p-4 hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => setExpanded(!expanded)}>
         <div className="flex items-center gap-3 flex-wrap">
+          {onToggleSelect && (
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={(e) => { e.stopPropagation(); onToggleSelect() }}
+              onClick={(e) => e.stopPropagation()}
+              className="rounded border-input"
+            />
+          )}
           {task.workspace_name && (
             <span className="flex items-center gap-1.5 text-xs font-medium">
               <span className="h-2 w-2 rounded-full" style={{ backgroundColor: task.workspace_color || '#3B82F6' }} />
@@ -207,6 +226,35 @@ export function TaskCard({ task, categories, roles, onTaskUpdated }: TaskCardPro
                   <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>
                 ))}
               </select>
+
+              {/* Quick reply from template */}
+              {templates && templates.length > 0 && (
+                <select
+                  className="text-xs border rounded-md px-2.5 py-1.5 bg-background min-w-[140px]"
+                  defaultValue=""
+                  onChange={async (e) => {
+                    const template = templates.find(t => t.id === e.target.value)
+                    if (!template) return
+                    const res = await fetch('/api/tasks', {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ id: task.id, status: 'edited' }),
+                    })
+                    if (res.ok) {
+                      toast.success(`Template "${template.name}" applied`)
+                      onTaskUpdated?.()
+                    } else {
+                      toast.error('Failed to apply template')
+                    }
+                    e.target.value = ''
+                  }}
+                >
+                  <option value="">Quick reply...</option>
+                  {templates.map(t => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              )}
 
               {/* Dismiss — only show when relevant */}
               {task.status !== 'dismissed' && task.status !== 'sent' && (

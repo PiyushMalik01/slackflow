@@ -29,7 +29,15 @@ interface Category {
   emoji: string
   color: string
   is_default: boolean
+  system_prompt?: string
   owner_id: string
+}
+
+interface ResponseTemplate {
+  id: string
+  name: string
+  content: string
+  category_id: string | null
 }
 
 interface WorkspacePrefs {
@@ -445,6 +453,21 @@ function CategoriesTab({ initialCategories }: { initialCategories: Category[] })
   const [showAddForm, setShowAddForm] = useState(false)
   const [deleteCategoryId, setDeleteCategoryId] = useState<string | null>(null)
 
+  // Templates state
+  const [templates, setTemplates] = useState<ResponseTemplate[]>([])
+  const [loadingTemplates, setLoadingTemplates] = useState(true)
+  const [showTemplateForm, setShowTemplateForm] = useState(false)
+  const [editingTemplate, setEditingTemplate] = useState<ResponseTemplate | null>(null)
+  const [deleteTemplateId, setDeleteTemplateId] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/templates')
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setTemplates(data) })
+      .catch(() => {})
+      .finally(() => setLoadingTemplates(false))
+  }, [])
+
   return (
     <div className="space-y-4 mt-4">
       <div className="flex items-center justify-between">
@@ -543,7 +566,203 @@ function CategoriesTab({ initialCategories }: { initialCategories: Category[] })
           No categories configured. Click &quot;Add Category&quot; to create one.
         </div>
       )}
+
+      {/* Response Templates Section */}
+      <div className="border-t pt-6 mt-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-semibold">Response Templates</h2>
+            <p className="text-sm text-muted-foreground">
+              Pre-written snippets for quick replies. Available on task cards as quick reply options.
+            </p>
+          </div>
+          <Button size="sm" onClick={() => { setEditingTemplate(null); setShowTemplateForm(true) }} disabled={showTemplateForm}>
+            <Plus className="size-3.5" />
+            Add Template
+          </Button>
+        </div>
+
+        {showTemplateForm && (
+          <TemplateForm
+            initial={editingTemplate}
+            categories={categories}
+            onSave={async (data) => {
+              if (editingTemplate) {
+                const res = await fetch('/api/templates', {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ id: editingTemplate.id, ...data }),
+                })
+                if (res.ok) {
+                  setTemplates(prev => prev.map(t => t.id === editingTemplate.id ? { ...t, ...data } : t))
+                  setShowTemplateForm(false)
+                  setEditingTemplate(null)
+                  toast.success('Template updated')
+                } else {
+                  toast.error('Failed to update template')
+                }
+              } else {
+                const res = await fetch('/api/templates', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(data),
+                })
+                if (res.ok) {
+                  const tmpl = await res.json()
+                  setTemplates(prev => [...prev, tmpl])
+                  setShowTemplateForm(false)
+                  toast.success('Template created')
+                } else {
+                  toast.error('Failed to create template')
+                }
+              }
+            }}
+            onCancel={() => { setShowTemplateForm(false); setEditingTemplate(null) }}
+          />
+        )}
+
+        <div className="space-y-2">
+          {loadingTemplates ? (
+            <div className="py-6 text-center text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin inline mr-2" />
+              Loading templates...
+            </div>
+          ) : templates.length === 0 && !showTemplateForm ? (
+            <div className="py-8 text-center text-muted-foreground text-sm">
+              No templates yet. Create one to use as a quick reply on task cards.
+            </div>
+          ) : (
+            templates.map(tmpl => (
+              <div key={tmpl.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card group hover:border-border/80 transition-colors">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">{tmpl.name}</span>
+                    {tmpl.category_id && (
+                      <Badge variant="secondary" className="text-[10px]">
+                        {categories.find(c => c.id === tmpl.category_id)?.emoji}{' '}
+                        {categories.find(c => c.id === tmpl.category_id)?.name || 'Category'}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate mt-0.5">
+                    {tmpl.content.length > 100 ? tmpl.content.substring(0, 100) + '...' : tmpl.content}
+                  </p>
+                </div>
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                  <Button variant="ghost" size="icon-xs" onClick={() => { setEditingTemplate(tmpl); setShowTemplateForm(true) }}>
+                    <Edit2 className="size-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon-xs" onClick={() => setDeleteTemplateId(tmpl.id)} className="hover:text-destructive">
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <ConfirmDialog
+          open={deleteTemplateId !== null}
+          onOpenChange={(open) => { if (!open) setDeleteTemplateId(null) }}
+          title="Delete Template"
+          description="Delete this response template? This action cannot be undone."
+          confirmLabel="Delete"
+          variant="danger"
+          onConfirm={async () => {
+            if (!deleteTemplateId) return
+            const res = await fetch(`/api/templates?id=${deleteTemplateId}`, { method: 'DELETE' })
+            if (res.ok) {
+              setTemplates(prev => prev.filter(t => t.id !== deleteTemplateId))
+              toast.success('Template deleted')
+            } else {
+              toast.error('Failed to delete template')
+            }
+          }}
+        />
+      </div>
     </div>
+  )
+}
+
+function TemplateForm({
+  initial,
+  categories,
+  onSave,
+  onCancel,
+}: {
+  initial: ResponseTemplate | null
+  categories: Category[]
+  onSave: (data: { name: string; content: string; category_id: string | null }) => Promise<void>
+  onCancel: () => void
+}) {
+  const [name, setName] = useState(initial?.name || '')
+  const [content, setContent] = useState(initial?.content || '')
+  const [categoryId, setCategoryId] = useState<string>(initial?.category_id || '')
+  const [saving, setSaving] = useState(false)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!name.trim() || !content.trim()) return
+    setSaving(true)
+    try {
+      await onSave({ name: name.trim(), content: content.trim(), category_id: categoryId || null })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardContent>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-medium mb-1.5">Template Name</label>
+            <Input
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="e.g. Bug Acknowledged, Feature Noted"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium mb-1.5">Response Content</label>
+            <textarea
+              value={content}
+              onChange={e => setContent(e.target.value)}
+              placeholder="The response text that will be posted..."
+              rows={3}
+              required
+              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-medium mb-1.5">Category (optional)</label>
+            <select
+              value={categoryId}
+              onChange={e => setCategoryId(e.target.value)}
+              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm"
+            >
+              <option value="">All categories</option>
+              {categories.map(c => (
+                <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>
+              ))}
+            </select>
+            <p className="text-xs text-muted-foreground mt-1">
+              If set, this template will only appear for tasks in the selected category.
+            </p>
+          </div>
+          <div className="flex gap-2 justify-end pt-1">
+            <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+              <X className="size-3.5" /> Cancel
+            </Button>
+            <Button type="submit" size="sm" disabled={saving || !name.trim() || !content.trim()}>
+              {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
+              {initial ? 'Update' : 'Create'}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -596,16 +815,36 @@ function CategoryForm({
   onCancel,
 }: {
   initial?: Partial<Category>
-  onSave: (data: { name: string; description: string; emoji: string; color: string }) => Promise<void>
+  onSave: (data: { name: string; description: string; emoji: string; color: string; system_prompt: string }) => Promise<void>
   onCancel: () => void
 }) {
   const [name, setName] = useState(initial?.name || '')
   const [description, setDescription] = useState(initial?.description || '')
   const [emoji, setEmoji] = useState(initial?.emoji || '')
   const [color, setColor] = useState(initial?.color || COLOR_PALETTE[0])
+  const [systemPrompt, setSystemPrompt] = useState(initial?.system_prompt || '')
+  const [generatingPrompt, setGeneratingPrompt] = useState(false)
   const [saving, setSaving] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const emojiPickerRef = useRef<HTMLDivElement>(null)
+
+  async function handleGeneratePrompt() {
+    if (!name.trim()) return
+    setGeneratingPrompt(true)
+    try {
+      const res = await fetch('/api/categories/generate-prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: name.trim(), description }),
+      })
+      const data = await res.json()
+      if (data.prompt) setSystemPrompt(data.prompt)
+    } catch {
+      toast.error('Failed to generate prompt')
+    } finally {
+      setGeneratingPrompt(false)
+    }
+  }
 
   // Close picker on outside click
   useEffect(() => {
@@ -623,7 +862,7 @@ function CategoryForm({
     if (!name.trim()) return
     setSaving(true)
     try {
-      await onSave({ name: name.trim(), description, emoji, color })
+      await onSave({ name: name.trim(), description, emoji, color, system_prompt: systemPrompt })
     } finally {
       setSaving(false)
     }
@@ -694,6 +933,30 @@ function CategoryForm({
                 />
               ))}
             </div>
+          </div>
+          <div>
+            <label className="block text-xs font-medium mb-1.5">Draft Prompt</label>
+            <p className="text-xs text-muted-foreground mb-2">
+              Tell the AI how to draft responses for this category. Leave empty for default behavior.
+            </p>
+            <textarea
+              value={systemPrompt}
+              onChange={e => setSystemPrompt(e.target.value)}
+              placeholder="e.g. Respond with urgency. Acknowledge the bug and assure the team is investigating. Keep it under 2 sentences."
+              rows={3}
+              className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-2 text-xs"
+              onClick={handleGeneratePrompt}
+              disabled={!name.trim() || generatingPrompt}
+            >
+              {generatingPrompt ? <Loader2 className="size-3 animate-spin mr-1" /> : <Brain className="size-3 mr-1" />}
+              Generate with AI
+            </Button>
           </div>
           <div className="flex gap-2 justify-end pt-1">
             <Button type="button" variant="ghost" size="sm" onClick={onCancel}>

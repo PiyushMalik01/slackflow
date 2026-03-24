@@ -143,6 +143,7 @@ export interface Database {
           color: string
           emoji: string
           is_default: boolean
+          system_prompt: string
           created_at: string
         }
         Insert: Omit<Database['public']['Tables']['categories']['Row'], 'id' | 'created_at'> & {
@@ -152,8 +153,25 @@ export interface Database {
           color?: string
           emoji?: string
           is_default?: boolean
+          system_prompt?: string
         }
         Update: Partial<Database['public']['Tables']['categories']['Insert']>
+      }
+      response_templates: {
+        Row: {
+          id: string
+          owner_id: string
+          name: string
+          content: string
+          category_id: string | null
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['response_templates']['Row'], 'id' | 'created_at'> & {
+          id?: string
+          created_at?: string
+          category_id?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['response_templates']['Insert']>
       }
       invite_tokens: {
         Row: {
@@ -262,6 +280,16 @@ export interface Category {
   color: string
   emoji: string
   is_default: boolean
+  system_prompt: string
+  created_at: string
+}
+
+export interface ResponseTemplate {
+  id: string
+  owner_id: string
+  name: string
+  content: string
+  category_id: string | null
   created_at: string
 }
 
