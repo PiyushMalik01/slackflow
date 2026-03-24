@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Plus, Save, Trash2, Edit2, X, Loader2,
@@ -604,6 +604,19 @@ function CategoryForm({
   const [emoji, setEmoji] = useState(initial?.emoji || '')
   const [color, setColor] = useState(initial?.color || COLOR_PALETTE[0])
   const [saving, setSaving] = useState(false)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const emojiPickerRef = useRef<HTMLDivElement>(null)
+
+  // Close picker on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
+        setShowEmojiPicker(false)
+      }
+    }
+    if (showEmojiPicker) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showEmojiPicker])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -632,11 +645,26 @@ function CategoryForm({
             </div>
             <div>
               <label className="block text-xs font-medium mb-1.5">Emoji</label>
-              <Input
-                value={emoji}
-                onChange={e => setEmoji(e.target.value)}
-                placeholder="e.g. bug, fire"
-              />
+              <div className="relative" ref={emojiPickerRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  className="flex items-center gap-2 w-full px-3 py-2 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors"
+                >
+                  <span className="text-lg">{emoji || '😀'}</span>
+                  <span className="text-muted-foreground text-xs">{emoji ? 'Change emoji' : 'Pick an emoji'}</span>
+                </button>
+                {showEmojiPicker && (
+                  <div className="absolute z-50 top-full mt-1 right-0">
+                    <EmojiPickerDropdown
+                      onSelect={(emojiStr: string) => {
+                        setEmoji(emojiStr)
+                        setShowEmojiPicker(false)
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <div>
@@ -676,6 +704,28 @@ function CategoryForm({
         </form>
       </CardContent>
     </Card>
+  )
+}
+
+// -- Emoji Picker Dropdown ----------------------------------------------------
+
+const LazyEmojiPicker = lazy(() => import('emoji-picker-react'))
+
+function EmojiPickerDropdown({ onSelect }: { onSelect: (emoji: string) => void }) {
+  return (
+    <div className="rounded-xl border shadow-xl bg-popover overflow-hidden">
+      <Suspense fallback={<div className="w-[350px] h-[400px] flex items-center justify-center text-sm text-muted-foreground">Loading...</div>}>
+        <LazyEmojiPicker
+          onEmojiClick={(emojiData) => onSelect(emojiData.emoji)}
+          width={350}
+          height={400}
+          searchPlaceHolder="Search emoji..."
+          previewConfig={{ showPreview: false }}
+          skinTonesDisabled
+          lazyLoadEmojis
+        />
+      </Suspense>
+    </div>
   )
 }
 
