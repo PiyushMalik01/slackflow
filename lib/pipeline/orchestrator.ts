@@ -11,24 +11,86 @@ import { WebClient } from '@slack/web-api'
 
 interface SlackEvent {
   type: string
+  subtype?: string
   text: string
   user: string
   channel: string
   ts: string
   thread_ts?: string
   bot_id?: string
+  bot_profile?: unknown
   event_id?: string
   team?: string
   username?: string
 }
+
+// Slack subtypes that are system/automated messages — never route these
+const IGNORED_SUBTYPES = new Set([
+  'bot_message',
+  'channel_join',
+  'channel_leave',
+  'channel_topic',
+  'channel_purpose',
+  'channel_name',
+  'channel_archive',
+  'channel_unarchive',
+  'group_join',
+  'group_leave',
+  'group_topic',
+  'group_purpose',
+  'group_name',
+  'group_archive',
+  'group_unarchive',
+  'file_share',
+  'file_comment',
+  'file_mention',
+  'pinned_item',
+  'unpinned_item',
+  'message_changed',
+  'message_deleted',
+  'message_replied',
+  'ekm_access_denied',
+  'me_message',
+  'thread_broadcast',
+  'tombstone',
+  'joiner_notification',
+  'slackbot_response',
+])
 
 export async function handleSlackMessage(event: SlackEvent, workspaceId: string): Promise<void> {
   const log = logger.child({ eventTs: event.ts, channel: event.channel })
   const supabase = getServiceClient()
 
   // Skip bot messages
-  if (event.bot_id) {
+  if (event.bot_id || event.bot_profile) {
     log.debug('Skipping bot message')
+    return
+  }
+
+  // Skip system/automated messages (joins, leaves, topic changes, etc.)
+  if (event.subtype && IGNORED_SUBTYPES.has(event.subtype)) {
+    log.debug({ subtype: event.subtype }, 'Skipping system message')
+    return
+  }
+
+  // Skip empty or whitespace-only messages
+  if (!event.text || !event.text.trim()) {
+    log.debug('Skipping empty message')
+    return
+  }
+
+  // Skip messages that look like Slack system patterns (e.g. "<@U123> has joined the channel")
+  const systemPatterns = [
+    /^<@\w+>\s+has\s+(joined|left)\s+the\s+channel/i,
+    /^<@\w+>\s+set\s+the\s+channel\s+(topic|purpose|description)/i,
+    /^<@\w+>\s+(pinned|unpinned)\s+a\s+message/i,
+    /^<@\w+>\s+(archived|unarchived)\s+the\s+channel/i,
+    /^<@\w+>\s+renamed\s+the\s+channel/i,
+    /^<@\w+>\s+was\s+added\s+to\s+the/i,
+    /^<@\w+>\s+was\s+removed\s+from/i,
+  ]
+  if (systemPatterns.some(pattern => pattern.test(event.text.trim()))) {
+    log.debug('Skipping system-pattern message')
     return
   }
 
