@@ -3,8 +3,9 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Zap, Loader2 } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import { createBrowserClient } from '@/lib/db/browser-client'
+import { PlatformLogo } from '@/components/platform-logo'
 
 function LoginForm() {
   const router = useRouter()
@@ -45,10 +46,7 @@ function LoginForm() {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-9 h-9 bg-primary rounded-xl flex items-center justify-center">
-              <Zap className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="font-bold text-xl">SlackFlow</span>
+            <PlatformLogo imageSize={72} textClassName="font-bold text-xl" priority />
           </Link>
           <h1 className="text-2xl font-bold">Welcome back</h1>
           <p className="text-sm text-muted-foreground mt-1">Sign in to your account</p>

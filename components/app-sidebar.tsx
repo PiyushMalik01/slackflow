@@ -7,12 +7,12 @@ import {
   Building2,
   ListChecks,
   Settings,
-  Zap,
   Activity,
   LogOut,
   ChevronRight,
 } from 'lucide-react'
 import { createBrowserClient } from '@/lib/db/browser-client'
+import { PlatformLogo } from '@/components/platform-logo'
 
 const navItems = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -36,10 +36,7 @@ export function AppSidebar() {
     <aside className="fixed inset-y-0 left-0 z-50 w-60 bg-sidebar border-r border-sidebar-border flex flex-col">
       {/* Logo */}
       <div className="h-14 flex items-center gap-2.5 px-4 border-b border-sidebar-border">
-        <div className="w-7 h-7 bg-primary rounded-lg flex items-center justify-center flex-shrink-0">
-          <Zap className="w-4 h-4 text-primary-foreground" />
-        </div>
-        <span className="font-semibold text-sm">SlackFlow</span>
+        <PlatformLogo imageSize={56} textClassName="text-sm" />
       </div>
 
       {/* Nav */}
