@@ -142,7 +142,7 @@ function Navbar() {
 
   return (
     <nav
-      className={`fixed z-50 left-0 right-0 mx-auto transition-all duration-500 ease-in-out ${
+      className={`fixed z-50 left-0 right-0 mx-auto transition-all duration-[800ms] ease-[cubic-bezier(0.25,0.1,0.25,1)] ${
         scrolled
           ? 'top-4 w-[90%] max-w-2xl rounded-full border border-border/60 bg-background/80 backdrop-blur-xl shadow-lg px-6 py-2'
           : 'top-0 w-full bg-background/80 backdrop-blur-md border-b border-border/40 px-6 py-3'
