@@ -27,8 +27,10 @@ export async function checkAndIncrementRateLimit(
   return { allowed: true, remaining: maxCount - data.count - 1 }
 }
 
-// Preset rate limits
 export const RATE_LIMITS = {
-  slackInstall: { max: 5, windowMs: 60 * 60 * 1000 }, // 5/hour
-  aiDraft: { max: 30, windowMs: 60 * 1000 }, // 30/min
+  slackInstall: { maxCount: 5, windowMs: 60 * 60 * 1000 },
+  slackEvents: { maxCount: 60, windowMs: 60 * 1000 },
+  telegramWebhook: { maxCount: 100, windowMs: 60 * 1000 },
+  apiMutation: { maxCount: 30, windowMs: 60 * 1000 },
+  aiDraft: { maxCount: 30, windowMs: 60 * 1000 },
 } as const
