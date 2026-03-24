@@ -253,6 +253,7 @@ function MemberItem({
         ) : (
           <InviteLinkButton
             roleId={role.id}
+            roleName={role.name}
             existingLink={activeToken ? `https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'SlackFlowBot'}?start=${activeToken.token}` : null}
             expiresAt={activeToken?.expires_at}
           />

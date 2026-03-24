@@ -1,29 +1,27 @@
 'use client'
 
 import { useState } from 'react'
+import { QRCodeSVG } from 'qrcode.react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Copy, Check, RefreshCw, Send, Link2, Loader2 } from 'lucide-react'
+import { Copy, Check, RefreshCw, QrCode, Share2, MessageCircle, Mail, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
 interface InviteLinkButtonProps {
   roleId: string
+  roleName?: string
   existingLink?: string | null
   expiresAt?: string | null
 }
 
-export function InviteLinkButton({ roleId, existingLink, expiresAt }: InviteLinkButtonProps) {
+export function InviteLinkButton({ roleId, roleName, existingLink, expiresAt }: InviteLinkButtonProps) {
   const [link, setLink] = useState(existingLink || '')
   const [copied, setCopied] = useState(false)
   const [loading, setLoading] = useState(false)
   const [expires, setExpires] = useState(expiresAt || '')
+  const [showQR, setShowQR] = useState(false)
+  const [showShare, setShowShare] = useState(false)
   const [error, setError] = useState('')
-
-  // Direct send state
-  const [showDirectSend, setShowDirectSend] = useState(false)
-  const [telegramUsername, setTelegramUsername] = useState('')
-  const [sending, setSending] = useState(false)
 
   const isExpired = expires ? new Date(expires) < new Date() : false
 
@@ -54,113 +52,81 @@ export function InviteLinkButton({ roleId, existingLink, expiresAt }: InviteLink
     }
   }
 
-  async function sendDirectInvite() {
-    if (!telegramUsername.trim()) return
-    setSending(true)
-    try {
-      const res = await fetch('/api/invite-tokens/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role_id: roleId, telegram_username: telegramUsername.trim() }),
-      })
-      const data = await res.json()
-
-      if (data.deep_link) {
-        setLink(data.deep_link)
-        setExpires(data.expires_at)
-      }
-
-      if (data.sent_directly) {
-        toast.success(`Invite sent to @${telegramUsername.replace('@', '')} on Telegram!`)
-        setShowDirectSend(false)
-        setTelegramUsername('')
-      } else {
-        // Couldn't send directly — auto-copy link and show helpful message
-        if (data.deep_link) {
-          await navigator.clipboard.writeText(data.deep_link)
-        }
-        toast.info(
-          `@${telegramUsername.replace('@', '')} hasn't started the bot yet. Invite link copied to clipboard — share it with them on any channel.`,
-          { duration: 5000 }
-        )
-        setShowDirectSend(false)
-        setTelegramUsername('')
-      }
-    } catch {
-      toast.error('Failed to send invite')
-    } finally {
-      setSending(false)
-    }
-  }
-
   async function copyToClipboard() {
     await navigator.clipboard.writeText(link)
     setCopied(true)
-    toast.success('Link copied!')
+    toast.success('Invite link copied!')
     setTimeout(() => setCopied(false), 2000)
   }
 
-  // No link yet — show generate options
+  function shareViaWhatsApp() {
+    const text = `You've been invited to join as ${roleName || 'a team member'} on SlackFlow. Click to connect your Telegram: ${link}`
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank')
+  }
+
+  function shareViaEmail() {
+    const subject = `SlackFlow — Join as ${roleName || 'Team Member'}`
+    const body = `Hi,\n\nYou've been invited to join SlackFlow as ${roleName || 'a team member'}.\n\nClick the link below to connect your Telegram account:\n${link}\n\nThe link expires in 24 hours.`
+    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_blank')
+  }
+
+  // No link yet — show generate button
   if (!link || isExpired) {
     return (
-      <div className="space-y-2">
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={generateLink} disabled={loading} className="text-xs">
-            <Link2 className={cn('h-3.5 w-3.5 mr-1', loading && 'animate-spin')} />
-            {isExpired ? 'Regenerate Link' : 'Generate Link'}
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => setShowDirectSend(!showDirectSend)} className="text-xs">
-            <Send className="h-3.5 w-3.5 mr-1" />
-            Send via Telegram
-          </Button>
-        </div>
-
-        {showDirectSend && (
-          <div className="flex items-center gap-2">
-            <Input
-              value={telegramUsername}
-              onChange={(e) => setTelegramUsername(e.target.value)}
-              placeholder="@username"
-              className="h-8 text-xs max-w-[180px]"
-              onKeyDown={(e) => e.key === 'Enter' && sendDirectInvite()}
-            />
-            <Button size="sm" onClick={sendDirectInvite} disabled={sending || !telegramUsername.trim()} className="text-xs h-8">
-              {sending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />}
-            </Button>
-          </div>
-        )}
-
+      <div className="space-y-1">
+        <Button variant="outline" size="sm" onClick={generateLink} disabled={loading} className="text-xs">
+          <RefreshCw className={cn('h-3.5 w-3.5 mr-1.5', loading && 'animate-spin')} />
+          {isExpired ? 'Regenerate Invite' : 'Create Invite'}
+        </Button>
         {error && <p className="text-xs text-destructive">{error}</p>}
       </div>
     )
   }
 
-  // Link exists — show it with copy + direct send option
+  // Link exists — show actions
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <code className="rounded bg-muted px-2 py-1 text-[11px] truncate max-w-[220px]">{link}</code>
-        <Button variant="ghost" size="sm" onClick={copyToClipboard} className="h-7 w-7 p-0">
-          {copied ? <Check className="h-3.5 w-3.5 text-green-500" /> : <Copy className="h-3.5 w-3.5" />}
+      {/* Main action row */}
+      <div className="flex items-center gap-1.5">
+        <Button size="sm" onClick={copyToClipboard} className="text-xs h-7">
+          {copied ? <Check className="h-3 w-3 mr-1 text-green-400" /> : <Copy className="h-3 w-3 mr-1" />}
+          {copied ? 'Copied!' : 'Copy Link'}
         </Button>
-        <Button variant="ghost" size="sm" onClick={() => setShowDirectSend(!showDirectSend)} className="h-7 w-7 p-0" title="Send via Telegram">
-          <Send className="h-3.5 w-3.5" />
+        <Button variant="outline" size="sm" onClick={() => { setShowQR(!showQR); setShowShare(false) }} className="text-xs h-7 px-2" title="Show QR Code">
+          <QrCode className="h-3.5 w-3.5" />
+        </Button>
+        <Button variant="outline" size="sm" onClick={() => { setShowShare(!showShare); setShowQR(false) }} className="text-xs h-7 px-2" title="Share">
+          <Share2 className="h-3.5 w-3.5" />
         </Button>
       </div>
 
-      {showDirectSend && (
+      {/* QR Code */}
+      {showQR && (
+        <div className="p-4 bg-white rounded-lg border inline-block">
+          <QRCodeSVG value={link} size={160} level="M" />
+          <p className="text-[10px] text-gray-500 mt-2 text-center">Scan to connect on Telegram</p>
+        </div>
+      )}
+
+      {/* Share options */}
+      {showShare && (
         <div className="flex items-center gap-2">
-          <Input
-            value={telegramUsername}
-            onChange={(e) => setTelegramUsername(e.target.value)}
-            placeholder="@username"
-            className="h-8 text-xs max-w-[180px]"
-            onKeyDown={(e) => e.key === 'Enter' && sendDirectInvite()}
-          />
-          <Button size="sm" onClick={sendDirectInvite} disabled={sending || !telegramUsername.trim()} className="text-xs h-8">
-            {sending ? <Loader2 className="h-3 w-3 animate-spin" /> : <>Send <Send className="h-3 w-3 ml-1" /></>}
+          <Button variant="outline" size="sm" onClick={shareViaWhatsApp} className="text-xs h-7">
+            <MessageCircle className="h-3 w-3 mr-1" />
+            WhatsApp
+          </Button>
+          <Button variant="outline" size="sm" onClick={shareViaEmail} className="text-xs h-7">
+            <Mail className="h-3 w-3 mr-1" />
+            Email
           </Button>
         </div>
+      )}
+
+      {/* Expiry info */}
+      {expires && (
+        <p className="text-[10px] text-muted-foreground">
+          Expires {new Date(expires).toLocaleDateString()} at {new Date(expires).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+        </p>
       )}
     </div>
   )
