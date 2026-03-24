@@ -124,13 +124,13 @@ export async function setWorkspaceRole(workspaceId: string, categoryId: string, 
   if (error) throw new DbError('workspace_role_set_failed', error.message)
 }
 
-export async function removeWorkspaceRole(workspaceId: string, category: TaskCategory) {
+export async function removeWorkspaceRole(workspaceId: string, categoryId: string) {
   const db = getServiceClient()
   const { error } = await db
     .from('workspace_roles')
     .delete()
     .eq('workspace_id', workspaceId)
-    .eq('category', category)
+    .eq('category_id', categoryId)
   if (error) throw new DbError('workspace_role_remove_failed', error.message)
 }
 

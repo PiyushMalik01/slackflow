@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getServiceClient } from '@/lib/db/client'
+import { bot } from '@/lib/telegram/bot'
+import { encrypt, decrypt } from '@/lib/utils/security'
 
 export async function GET() {
   const checks: Record<string, 'ok' | 'error'> = {}
@@ -24,8 +26,24 @@ export async function GET() {
       ? 'ok'
       : 'error'
 
-  // Telegram check
-  checks.telegram = process.env.TELEGRAM_BOT_TOKEN ? 'ok' : 'error'
+  // Telegram bot connectivity check
+  try {
+    if (!bot) throw new Error('Bot not initialized')
+    await bot.getMe()
+    checks.telegram = 'ok'
+  } catch {
+    checks.telegram = 'error'
+  }
+
+  // Encryption round-trip test
+  try {
+    const testPlain = 'health-check'
+    const { enc, iv } = encrypt(testPlain)
+    const decrypted = decrypt(enc, iv)
+    checks.encryption = decrypted === testPlain ? 'ok' : 'error'
+  } catch {
+    checks.encryption = 'error'
+  }
 
   const allOk = Object.values(checks).every((v) => v === 'ok')
 
