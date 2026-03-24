@@ -306,3 +306,77 @@ export async function checkDuplicate(workspaceId: string, channel: string, threa
     .limit(1)
   return (data?.length ?? 0) > 0
 }
+
+// ── Categories ────────────────────────────────────────────────────────────────
+export async function getCategories(ownerId: string) {
+  const { data, error } = await getServiceClient()
+    .from('categories')
+    .select('*')
+    .eq('owner_id', ownerId)
+    .order('is_default', { ascending: false })
+    .order('name')
+  if (error) throw new DbError('categories_list_failed', 'Failed to load categories')
+  return data
+}
+
+export async function getCategoryByName(ownerId: string, name: string) {
+  const { data } = await getServiceClient()
+    .from('categories')
+    .select('*')
+    .eq('owner_id', ownerId)
+    .ilike('name', name)
+    .limit(1)
+    .maybeSingle()
+  return data
+}
+
+export async function createCategory(data: {
+  owner_id: string
+  name: string
+  description?: string
+  color?: string
+  emoji?: string
+  is_default?: boolean
+}) {
+  const { data: cat, error } = await getServiceClient()
+    .from('categories')
+    .insert(data)
+    .select()
+    .single()
+  if (error) throw new DbError('category_create_failed', 'Failed to create category')
+  return cat
+}
+
+export async function updateCategory(id: string, data: {
+  name?: string
+  description?: string
+  color?: string
+  emoji?: string
+}) {
+  const { error } = await getServiceClient()
+    .from('categories')
+    .update(data)
+    .eq('id', id)
+  if (error) throw new DbError('category_update_failed', 'Failed to update category')
+}
+
+export async function deleteCategory(id: string) {
+  const { error } = await getServiceClient()
+    .from('categories')
+    .delete()
+    .eq('id', id)
+  if (error) throw new DbError('category_delete_failed', 'Failed to delete category')
+}
+
+export async function seedDefaultCategories(ownerId: string) {
+  const defaults = [
+    { owner_id: ownerId, name: 'Bug', description: 'Bug reports, errors, crashes, and broken functionality', emoji: '🐛', color: '#EF4444', is_default: true },
+    { owner_id: ownerId, name: 'Feature', description: 'Feature requests, enhancements, and new functionality ideas', emoji: '✨', color: '#8B5CF6', is_default: true },
+    { owner_id: ownerId, name: 'General', description: 'General questions, discussions, and miscellaneous messages', emoji: '💬', color: '#6B7280', is_default: true },
+  ]
+  for (const cat of defaults) {
+    await getServiceClient()
+      .from('categories')
+      .upsert(cat, { onConflict: 'owner_id,name' })
+  }
+}
