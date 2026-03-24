@@ -245,11 +245,18 @@ function MemberItem({
         </div>
       </div>
       <div className="mt-3 pl-[18px]">
-        <InviteLinkButton
-          roleId={role.id}
-          existingLink={activeToken ? `https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'SlackFlowBot'}?start=${activeToken.token}` : null}
-          expiresAt={activeToken?.expires_at}
-        />
+        {role.status === 'linked' ? (
+          <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-1.5">
+            <Check className="size-3.5" />
+            Connected via Telegram
+          </span>
+        ) : (
+          <InviteLinkButton
+            roleId={role.id}
+            existingLink={activeToken ? `https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'SlackFlowBot'}?start=${activeToken.token}` : null}
+            expiresAt={activeToken?.expires_at}
+          />
+        )}
       </div>
     </div>
   )
