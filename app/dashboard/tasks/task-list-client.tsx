@@ -193,7 +193,7 @@ export function TaskListClient({ tasks, categories, roles }: TaskListClientProps
 
       {/* Bulk action bar */}
       {selectedIds.size > 0 && (
-        <div className="flex items-center gap-3 p-3 bg-primary/5 border rounded-lg">
+        <div className="flex items-center gap-2 gap-y-2 p-3 bg-primary/5 border rounded-lg flex-wrap">
           <span className="text-sm font-medium">{selectedIds.size} selected</span>
           <Button variant="outline" size="sm" onClick={bulkDismiss}>
             Dismiss All
@@ -208,7 +208,7 @@ export function TaskListClient({ tasks, categories, roles }: TaskListClientProps
           </Button>
           {roles && roles.length > 0 && (
             <select
-              className="text-xs border rounded px-2 py-1.5 bg-background"
+              className="text-xs border rounded px-2 py-1.5 bg-background max-w-[180px]"
               defaultValue=""
               onChange={async (e) => {
                 const roleId = e.target.value

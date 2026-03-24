@@ -235,7 +235,7 @@ function MemberItem({
           <Badge variant="secondary" className="text-[10px]">{role.type}</Badge>
           <span className="text-xs text-muted-foreground">{status.label}</span>
         </div>
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+        <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
           <Button variant="ghost" size="icon-xs" onClick={onEdit}>
             <Edit2 className="size-3.5" />
           </Button>
@@ -542,8 +542,8 @@ function WorkspaceRoutingCard({
           {categories.map(cat => {
             const status = saving[cat.id] || 'idle'
             return (
-              <div key={cat.id} className="flex items-center gap-3">
-                <div className="flex items-center gap-2 w-36 flex-shrink-0">
+              <div key={cat.id} className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+                <div className="flex items-center gap-2 sm:w-36 sm:flex-shrink-0">
                   <span
                     className="size-2.5 rounded-full flex-shrink-0"
                     style={{ backgroundColor: cat.color }}
@@ -570,7 +570,7 @@ function WorkspaceRoutingCard({
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="w-14 flex-shrink-0">
+                <div className="w-auto sm:w-14 sm:flex-shrink-0">
                   {status === 'saving' && (
                     <span className="text-xs text-muted-foreground flex items-center gap-1">
                       <Loader2 className="size-3 animate-spin" />

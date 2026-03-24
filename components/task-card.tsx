@@ -109,8 +109,8 @@ export function TaskCard({ task, categories, roles, templates, selected, onToggl
 
   return (
     <>
-      <div className="border rounded-lg p-4 hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => setExpanded(!expanded)}>
-        <div className="flex items-center gap-3 flex-wrap">
+      <div className="border rounded-lg p-3 sm:p-4 hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => setExpanded(!expanded)}>
+        <div className="flex items-start gap-2 flex-wrap text-xs sm:gap-3">
           {onToggleSelect && (
             <input
               type="checkbox"
@@ -121,13 +121,13 @@ export function TaskCard({ task, categories, roles, templates, selected, onToggl
             />
           )}
           {task.workspace_name && (
-            <span className="flex items-center gap-1.5 text-xs font-medium">
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: task.workspace_color || '#3B82F6' }} />
-              {task.workspace_name}
+            <span className="flex items-center gap-1.5 font-medium">
+              <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: task.workspace_color || '#3B82F6' }} />
+              <span className="truncate max-w-[120px] sm:max-w-none">{task.workspace_name}</span>
             </span>
           )}
-          <span className="text-xs text-muted-foreground">#{formatChannel(task.channel)}</span>
-          <span className="text-xs text-muted-foreground">{formatSender(task.sender_name)}</span>
+          <span className="text-muted-foreground truncate max-w-[80px] sm:max-w-none">#{formatChannel(task.channel)}</span>
+          <span className="text-muted-foreground hidden sm:inline">{formatSender(task.sender_name)}</span>
           <CategoryBadge name={task.category} emoji={task.category_emoji} color={task.category_color} />
           {task.role_name ? (
             <span className="text-xs font-medium">{task.role_name}</span>
@@ -138,8 +138,8 @@ export function TaskCard({ task, categories, roles, templates, selected, onToggl
             </span>
           )}
           <StatusPill status={task.status} />
-          <span className="text-xs text-muted-foreground ml-auto">{timeAgo}</span>
-          {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+          <span className="text-muted-foreground ml-auto whitespace-nowrap">{timeAgo}</span>
+          {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground flex-shrink-0" /> : <ChevronDown className="h-4 w-4 text-muted-foreground flex-shrink-0" />}
         </div>
 
         {expanded && (
@@ -174,7 +174,7 @@ export function TaskCard({ task, categories, roles, templates, selected, onToggl
             <div className="flex items-center gap-2 flex-wrap border-t pt-3">
               {/* Assign/Reassign dropdown */}
               <select
-                className="text-xs border rounded-md px-2.5 py-1.5 bg-background min-w-[160px]"
+                className="text-xs border rounded-md px-2.5 py-1.5 bg-background w-full sm:w-auto sm:min-w-[160px]"
                 value={task.role_id || ''}
                 onChange={async (e) => {
                   const roleId = e.target.value
@@ -207,7 +207,7 @@ export function TaskCard({ task, categories, roles, templates, selected, onToggl
 
               {/* Recategorize dropdown */}
               <select
-                className="text-xs border rounded-md px-2.5 py-1.5 bg-background min-w-[140px]"
+                className="text-xs border rounded-md px-2.5 py-1.5 bg-background w-full sm:w-auto sm:min-w-[140px]"
                 value={task.category_id || ''}
                 onChange={async (e) => {
                   const catId = e.target.value
@@ -230,7 +230,7 @@ export function TaskCard({ task, categories, roles, templates, selected, onToggl
               {/* Quick reply from template */}
               {templates && templates.length > 0 && (
                 <select
-                  className="text-xs border rounded-md px-2.5 py-1.5 bg-background min-w-[140px]"
+                  className="text-xs border rounded-md px-2.5 py-1.5 bg-background w-full sm:w-auto sm:min-w-[140px]"
                   defaultValue=""
                   onChange={async (e) => {
                     const template = templates.find(t => t.id === e.target.value)
@@ -288,9 +288,9 @@ export function TaskCard({ task, categories, roles, templates, selected, onToggl
                 </button>
                 {showNewMember && (
                   <div className="mt-2 p-3 border rounded-lg space-y-2 bg-muted/30">
-                    <div className="flex gap-2">
-                      <input type="text" placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} className="flex-1 text-xs border rounded px-2.5 py-1.5 bg-background" />
-                      <input type="text" placeholder="Type" value={newType} onChange={(e) => setNewType(e.target.value)} className="w-28 text-xs border rounded px-2.5 py-1.5 bg-background" />
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <input type="text" placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} className="flex-1 text-xs border rounded px-2.5 py-1.5 bg-background w-full" />
+                      <input type="text" placeholder="Type" value={newType} onChange={(e) => setNewType(e.target.value)} className="text-xs border rounded px-2.5 py-1.5 bg-background w-full sm:w-28" />
                     </div>
                     <div className="flex gap-1.5">
                       {['Dev', 'Design', 'PM', 'Support'].map(t => (

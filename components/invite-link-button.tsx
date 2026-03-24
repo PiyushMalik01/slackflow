@@ -87,7 +87,7 @@ export function InviteLinkButton({ roleId, roleName, existingLink, expiresAt }: 
   return (
     <div className="space-y-2">
       {/* Main action row */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
         <Button size="sm" onClick={copyToClipboard} className="text-xs h-7">
           {copied ? <Check className="h-3 w-3 mr-1 text-green-400" /> : <Copy className="h-3 w-3 mr-1" />}
           {copied ? 'Copied!' : 'Copy Link'}
@@ -102,15 +102,15 @@ export function InviteLinkButton({ roleId, roleName, existingLink, expiresAt }: 
 
       {/* QR Code */}
       {showQR && (
-        <div className="p-4 bg-white rounded-lg border inline-block">
-          <QRCodeSVG value={link} size={160} level="M" />
+        <div className="p-3 bg-white rounded-lg border inline-block">
+          <QRCodeSVG value={link} size={140} level="M" />
           <p className="text-[10px] text-gray-500 mt-2 text-center">Scan to connect on Telegram</p>
         </div>
       )}
 
       {/* Share options */}
       {showShare && (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" size="sm" onClick={shareViaWhatsApp} className="text-xs h-7">
             <MessageCircle className="h-3 w-3 mr-1" />
             WhatsApp

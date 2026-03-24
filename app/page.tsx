@@ -213,7 +213,7 @@ export default function LandingPage() {
 
         <ParticleBackground />
 
-        <div className="mx-auto max-w-4xl px-6 pb-20 pt-24 text-center sm:pt-32 lg:pt-40">
+        <div className="mx-auto max-w-4xl px-4 pb-16 pt-20 text-center sm:px-6 sm:pb-20 sm:pt-32 lg:pt-40">
           <motion.div
             className="mb-8 inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-4 py-1.5 text-xs font-medium text-violet-700 dark:text-violet-300"
             initial={{ opacity: 0, y: 10 }}
@@ -229,7 +229,7 @@ export default function LandingPage() {
           </motion.div>
 
           <motion.h1
-            className="text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl lg:text-7xl"
+            className="text-3xl font-bold leading-[1.1] tracking-tight sm:text-4xl md:text-5xl lg:text-7xl"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -241,7 +241,7 @@ export default function LandingPage() {
           </motion.h1>
 
           <motion.p
-            className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl"
+            className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground sm:mt-8 sm:text-lg md:text-xl"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.2, ease: 'easeOut' }}
@@ -389,7 +389,7 @@ export default function LandingPage() {
       <section className="py-24">
         <div className="mx-auto max-w-3xl px-6">
           <motion.div
-            className="relative isolate overflow-hidden rounded-3xl px-8 py-16 text-center sm:px-16"
+            className="relative isolate overflow-hidden rounded-3xl px-5 py-12 text-center sm:px-8 sm:py-16 md:px-16"
             style={{
               background:
                 'linear-gradient(135deg, rgba(124,58,237,0.08) 0%, rgba(37,99,235,0.08) 100%)',

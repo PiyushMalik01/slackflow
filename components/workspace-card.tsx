@@ -128,13 +128,13 @@ export function WorkspaceCard({ workspace }: { workspace: Workspace }) {
                 <div className="flex items-center gap-2 flex-wrap">
                   <CardTitle>{workspace.name}</CardTitle>
                 </div>
-                <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
-                    <Calendar className="size-3" />
+                    <Calendar className="size-3 flex-shrink-0" />
                     Installed {new Date(workspace.installed_at).toLocaleDateString()}
                   </span>
                   <span className="flex items-center gap-1">
-                    <Radio className="size-3" />
+                    <Radio className="size-3 flex-shrink-0" />
                     {monitoredCount} {monitoredCount === 1 ? 'channel' : 'channels'} monitored
                   </span>
                 </div>

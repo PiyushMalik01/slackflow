@@ -267,7 +267,7 @@ function AITab({ initialStatus }: { initialStatus: AIStatus }) {
       {status.connected && (
         <Card>
           <CardHeader>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
                 <CardTitle>ChatGPT</CardTitle>
                 <Badge className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
@@ -279,7 +279,7 @@ function AITab({ initialStatus }: { initialStatus: AIStatus }) {
                 size="sm"
                 onClick={disconnect}
                 disabled={disconnecting}
-                className="text-destructive hover:text-destructive"
+                className="text-destructive hover:text-destructive self-start sm:self-auto"
               >
                 {disconnecting ? <Loader2 className="size-3.5 animate-spin" /> : <LogOut className="size-3.5" />}
                 Disconnect
@@ -649,7 +649,7 @@ function CategoriesTab({ initialCategories }: { initialCategories: Category[] })
                     {tmpl.content.length > 100 ? tmpl.content.substring(0, 100) + '...' : tmpl.content}
                   </p>
                 </div>
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+                <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                   <Button variant="ghost" size="icon-xs" onClick={() => { setEditingTemplate(tmpl); setShowTemplateForm(true) }}>
                     <Edit2 className="size-3.5" />
                   </Button>
@@ -835,7 +835,7 @@ function CategoryItem({
           </p>
         )}
       </div>
-      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+      <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
         <Button variant="ghost" size="icon-xs" onClick={onEdit}>
           <Edit2 className="size-3.5" />
         </Button>
@@ -959,7 +959,7 @@ function CategoryForm({
           </div>
           <div>
             <label className="block text-xs font-medium mb-1.5">Color</label>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {COLOR_PALETTE.map(c => (
                 <button
                   key={c}
@@ -1022,12 +1022,12 @@ const EMOJI_THEME_LIGHT = 'light' as 'light' & import('emoji-picker-react').Them
 function EmojiPickerDropdown({ onSelect }: { onSelect: (emoji: string) => void }) {
   const { resolvedTheme } = useTheme()
   return (
-    <div className="rounded-xl border shadow-xl bg-popover overflow-hidden">
-      <Suspense fallback={<div className="w-[350px] h-[400px] flex items-center justify-center text-sm text-muted-foreground">Loading...</div>}>
+    <div className="rounded-xl border shadow-xl bg-popover overflow-hidden max-w-[calc(100vw-2rem)]">
+      <Suspense fallback={<div className="w-[min(350px,calc(100vw-2rem))] h-[380px] flex items-center justify-center text-sm text-muted-foreground">Loading...</div>}>
         <LazyEmojiPicker
           onEmojiClick={(emojiData) => onSelect(emojiData.emoji)}
-          width={350}
-          height={400}
+          width="min(350px, calc(100vw - 2rem))"
+          height={380}
           searchPlaceHolder="Search emoji..."
           previewConfig={{ showPreview: false }}
           skinTonesDisabled
@@ -1122,7 +1122,7 @@ function WorkspacePrefsCard({ workspace }: { workspace: WorkspacePrefs }) {
         {/* Accent color */}
         <div>
           <label className="block text-xs font-medium mb-2">Accent Color</label>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {ACCENT_COLORS.map(c => (
               <button
                 key={c.value}
