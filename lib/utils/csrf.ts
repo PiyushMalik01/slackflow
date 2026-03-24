@@ -12,7 +12,12 @@ export async function validateOrigin(): Promise<boolean> {
   if (!origin && !referer) return false
 
   const allowed = new URL(appUrl).origin
+  // Also allow localhost in development
+  const isDev = process.env.NODE_ENV !== 'production'
+  const requestOrigin = origin || (referer ? new URL(referer).origin : '')
+  const isLocalhost = requestOrigin.startsWith('http://localhost')
 
+  if (isDev && isLocalhost) return true
   if (origin && origin === allowed) return true
   if (referer) {
     try {
