@@ -5,7 +5,7 @@ import { CategoryBadge } from '@/components/category-badge'
 import { StatusPill } from '@/components/status-pill'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
-import { ChevronDown, ChevronUp, X, Trash2, AlertTriangle, UserPlus, Loader2 } from 'lucide-react'
+import { ChevronDown, ChevronUp, AlertTriangle, Trash2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 interface TaskCardProps {
@@ -38,74 +38,13 @@ export function TaskCard({ task, categories, roles, onTaskUpdated }: TaskCardPro
   const [expanded, setExpanded] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
-  // Assignment state
-  const [selectedRoleId, setSelectedRoleId] = useState('')
-  const [assigning, setAssigning] = useState(false)
+  // New member form state
   const [showNewMember, setShowNewMember] = useState(false)
   const [newName, setNewName] = useState('')
   const [newType, setNewType] = useState('')
-  const [autoRoute, setAutoRoute] = useState(true)
   const [creating, setCreating] = useState(false)
 
   const timeAgo = getRelativeTime(task.created_at)
-
-  async function handleAssign() {
-    if (!selectedRoleId) return
-    setAssigning(true)
-    try {
-      const res = await fetch('/api/tasks', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: task.id, role_id: selectedRoleId }),
-      })
-      if (res.ok) {
-        const role = roles?.find(r => r.id === selectedRoleId)
-        toast.success(`Task assigned to ${role?.name || 'member'}`)
-        onTaskUpdated?.()
-      } else {
-        toast.error('Failed to assign task')
-      }
-    } catch {
-      toast.error('Failed to assign task')
-    } finally {
-      setAssigning(false)
-    }
-  }
-
-  async function handleAssignWithRouting() {
-    if (!selectedRoleId) return
-    setAssigning(true)
-    try {
-      const res = await fetch('/api/tasks', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: task.id, role_id: selectedRoleId }),
-      })
-      if (!res.ok) { toast.error('Failed to assign task'); return }
-
-      const role = roles?.find(r => r.id === selectedRoleId)
-
-      if (autoRoute && task.category_id && task.workspace_id) {
-        await fetch('/api/workspace-roles', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            workspace_id: task.workspace_id,
-            category_id: task.category_id,
-            role_id: selectedRoleId,
-          }),
-        })
-        toast.success(`Assigned to ${role?.name || 'member'}. Future "${task.category}" tasks will be routed automatically.`)
-      } else {
-        toast.success(`Task assigned to ${role?.name || 'member'}`)
-      }
-      onTaskUpdated?.()
-    } catch {
-      toast.error('Failed to assign task')
-    } finally {
-      setAssigning(false)
-    }
-  }
 
   async function handleCreateAndAssign() {
     if (!newName.trim() || !newType.trim()) {
@@ -131,8 +70,8 @@ export function TaskCard({ task, categories, roles, onTaskUpdated }: TaskCardPro
       })
       if (!assignRes.ok) { toast.error('Failed to assign task'); return }
 
-      // 3. Optionally set up routing for future tasks
-      if (autoRoute && task.category_id && task.workspace_id) {
+      // 3. Auto-route for future tasks if possible
+      if (task.category_id && task.workspace_id) {
         await fetch('/api/workspace-roles', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -185,151 +124,72 @@ export function TaskCard({ task, categories, roles, onTaskUpdated }: TaskCardPro
         </div>
 
         {expanded && (
-          <div className="mt-4 space-y-3 text-sm border-t pt-4">
-            <div>
-              <p className="font-medium text-xs text-muted-foreground mb-1">Original Message</p>
-              <p className="whitespace-pre-wrap">{task.original_text}</p>
-            </div>
-            {task.draft_text && (
+          <div className="mt-4 text-sm border-t pt-4" onClick={(e) => e.stopPropagation()}>
+            {/* Message content */}
+            <div className="space-y-3 mb-4">
               <div>
-                <p className="font-medium text-xs text-muted-foreground mb-1">AI Draft</p>
-                <p className="whitespace-pre-wrap text-muted-foreground italic">{task.draft_text}</p>
+                <p className="font-medium text-xs text-muted-foreground mb-1">Original Message</p>
+                <p className="whitespace-pre-wrap">{task.original_text}</p>
               </div>
-            )}
-            {task.edited_text && (
-              <div>
-                <p className="font-medium text-xs text-muted-foreground mb-1">Edited Response</p>
-                <p className="whitespace-pre-wrap">{task.edited_text}</p>
-              </div>
-            )}
-            {task.final_text && (
-              <div>
-                <p className="font-medium text-xs text-muted-foreground mb-1">Final Response</p>
-                <p className="whitespace-pre-wrap text-green-700 dark:text-green-400">{task.final_text}</p>
-              </div>
-            )}
-
-            {/* Assignment Section */}
-            <div
-              className="border-t pt-4 mt-4"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <h4 className="text-sm font-medium mb-3 flex items-center gap-2">
-                <UserPlus className="h-4 w-4" />
-                {task.role_name ? 'Reassign Task' : 'Assign Task'}
-              </h4>
-
-              {/* Assign to existing member */}
-              {roles && roles.length > 0 && (
-                <div className="flex items-center gap-2 mb-3">
-                  <select
-                    className="text-xs border rounded px-2 py-1.5 bg-background flex-1 max-w-xs"
-                    value={selectedRoleId}
-                    onChange={(e) => setSelectedRoleId(e.target.value)}
-                  >
-                    <option value="">Select a team member...</option>
-                    {roles.map(r => (
-                      <option key={r.id} value={r.id}>
-                        {r.name} ({r.type})
-                      </option>
-                    ))}
-                  </select>
-                  <Button
-                    size="sm"
-                    disabled={!selectedRoleId || assigning}
-                    onClick={handleAssignWithRouting}
-                  >
-                    {assigning && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                    Assign
-                  </Button>
+              {task.draft_text && (
+                <div className="bg-muted/30 rounded-lg p-3">
+                  <p className="font-medium text-xs text-muted-foreground mb-1">AI Draft</p>
+                  <p className="whitespace-pre-wrap text-muted-foreground italic">{task.draft_text}</p>
                 </div>
               )}
-
-              {/* Auto-route checkbox for existing member assignment */}
-              {selectedRoleId && task.category_id && task.workspace_id && (
-                <label className="flex items-center gap-2 text-xs text-muted-foreground mb-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={autoRoute}
-                    onChange={(e) => setAutoRoute(e.target.checked)}
-                    className="rounded"
-                  />
-                  Also route future &quot;{task.category}&quot; tasks to this member
-                </label>
+              {task.edited_text && (
+                <div className="bg-blue-50 dark:bg-blue-950/30 rounded-lg p-3">
+                  <p className="font-medium text-xs text-muted-foreground mb-1">Edited Response</p>
+                  <p className="whitespace-pre-wrap">{task.edited_text}</p>
+                </div>
               )}
-
-              {/* Create new member toggle */}
-              <button
-                onClick={() => setShowNewMember(!showNewMember)}
-                className="text-xs text-primary hover:underline"
-              >
-                {showNewMember ? '- Cancel new member' : '+ Create new member and assign'}
-              </button>
-
-              {/* Inline new member form */}
-              {showNewMember && (
-                <div className="mt-3 p-3 border rounded-lg space-y-3 bg-muted/30">
-                  <input
-                    type="text"
-                    placeholder="Member name"
-                    value={newName}
-                    onChange={(e) => setNewName(e.target.value)}
-                    className="w-full text-sm border rounded px-3 py-1.5 bg-background"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Type (e.g. Developer)"
-                    value={newType}
-                    onChange={(e) => setNewType(e.target.value)}
-                    className="w-full text-sm border rounded px-3 py-1.5 bg-background"
-                  />
-                  <div className="flex gap-1.5 flex-wrap">
-                    {['Developer', 'Designer', 'PM', 'Support'].map(t => (
-                      <button
-                        key={t}
-                        onClick={() => setNewType(t)}
-                        className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                          newType === t
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'bg-background hover:bg-accent border-border'
-                        }`}
-                      >
-                        {t}
-                      </button>
-                    ))}
-                  </div>
-                  {task.category_id && task.workspace_id && (
-                    <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={autoRoute}
-                        onChange={(e) => setAutoRoute(e.target.checked)}
-                        className="rounded"
-                      />
-                      Also route future &quot;{task.category}&quot; tasks to this member
-                    </label>
-                  )}
-                  <Button
-                    size="sm"
-                    disabled={!newName.trim() || !newType.trim() || creating}
-                    onClick={handleCreateAndAssign}
-                  >
-                    {creating && <Loader2 className="h-3 w-3 mr-1 animate-spin" />}
-                    Create &amp; Assign
-                  </Button>
+              {task.final_text && (
+                <div className="bg-green-50 dark:bg-green-950/30 rounded-lg p-3">
+                  <p className="font-medium text-xs text-muted-foreground mb-1">Final Response</p>
+                  <p className="whitespace-pre-wrap">{task.final_text}</p>
                 </div>
               )}
             </div>
 
-            {/* Action buttons */}
-            <div
-              className="flex items-center gap-2 pt-3 border-t mt-3 flex-wrap"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Recategorize select */}
+            {/* Single compact action bar */}
+            <div className="flex items-center gap-2 flex-wrap border-t pt-3">
+              {/* Assign/Reassign dropdown */}
               <select
-                className="text-xs border rounded px-2 py-1.5 bg-background"
-                defaultValue=""
+                className="text-xs border rounded-md px-2.5 py-1.5 bg-background min-w-[160px]"
+                value={task.role_id || ''}
+                onChange={async (e) => {
+                  const roleId = e.target.value
+                  if (!roleId) return
+                  const res = await fetch('/api/tasks', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: task.id, role_id: roleId }),
+                  })
+                  if (res.ok) {
+                    const role = roles?.find(r => r.id === roleId)
+                    // Auto-route if category is set
+                    if (task.category_id && task.workspace_id) {
+                      await fetch('/api/workspace-roles', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ workspace_id: task.workspace_id, category_id: task.category_id, role_id: roleId }),
+                      })
+                    }
+                    toast.success(`Assigned to ${role?.name || 'member'}`)
+                    onTaskUpdated?.()
+                  }
+                }}
+              >
+                <option value="">Assign to...</option>
+                {roles?.map(r => (
+                  <option key={r.id} value={r.id}>{r.name} ({r.type})</option>
+                ))}
+              </select>
+
+              {/* Recategorize dropdown */}
+              <select
+                className="text-xs border rounded-md px-2.5 py-1.5 bg-background min-w-[140px]"
+                value={task.category_id || ''}
                 onChange={async (e) => {
                   const catId = e.target.value
                   const cat = categories?.find(c => c.id === catId)
@@ -339,56 +199,64 @@ export function TaskCard({ task, categories, roles, onTaskUpdated }: TaskCardPro
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id: task.id, category_id: catId, category: cat.name }),
                   })
-                  if (res.ok) { toast.success('Recategorized'); onTaskUpdated?.() }
-                  else toast.error('Failed to recategorize')
+                  if (res.ok) { toast.success(`Moved to ${cat.name}`); onTaskUpdated?.() }
                 }}
               >
-                <option value="" disabled>Move to category...</option>
+                <option value="" disabled>Category...</option>
                 {categories?.map(c => (
                   <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>
                 ))}
               </select>
 
-              {/* Dismiss */}
-              {task.status !== 'dismissed' && (
-                <Button variant="outline" size="sm" onClick={async () => {
-                  const res = await fetch('/api/tasks', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: task.id, status: 'dismissed' }),
-                  })
-                  if (res.ok) { toast.success('Task dismissed'); onTaskUpdated?.() }
-                  else toast.error('Failed to dismiss')
+              {/* Dismiss — only show when relevant */}
+              {task.status !== 'dismissed' && task.status !== 'sent' && (
+                <Button variant="outline" size="sm" className="text-xs h-7" onClick={async () => {
+                  await fetch('/api/tasks', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id: task.id, status: 'dismissed'}) })
+                  toast.success('Dismissed'); onTaskUpdated?.()
                 }}>
-                  <X className="h-3 w-3 mr-1" /> Dismiss
+                  Dismiss
                 </Button>
               )}
 
-              {/* Mark Sent */}
-              {task.status !== 'sent' && (
-                <Button variant="outline" size="sm" onClick={async () => {
-                  const res = await fetch('/api/tasks', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: task.id, status: 'sent' }),
-                  })
-                  if (res.ok) { toast.success('Marked as sent'); onTaskUpdated?.() }
-                  else toast.error('Failed to update')
-                }}>
-                  Mark Sent
-                </Button>
-              )}
-
-              {/* Delete */}
+              {/* Delete — pushed to right */}
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950 ml-auto"
+                className="text-xs h-7 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 ml-auto"
                 onClick={() => setDeleteDialogOpen(true)}
               >
-                <Trash2 className="h-3 w-3 mr-1" /> Delete
+                <Trash2 className="h-3 w-3" />
               </Button>
             </div>
+
+            {/* "+ New member" link — only show if task is unassigned */}
+            {!task.role_name && (
+              <div className="mt-2">
+                <button
+                  onClick={() => setShowNewMember(!showNewMember)}
+                  className="text-xs text-primary hover:underline"
+                >
+                  {showNewMember ? 'Cancel' : '+ Create new member and assign'}
+                </button>
+                {showNewMember && (
+                  <div className="mt-2 p-3 border rounded-lg space-y-2 bg-muted/30">
+                    <div className="flex gap-2">
+                      <input type="text" placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} className="flex-1 text-xs border rounded px-2.5 py-1.5 bg-background" />
+                      <input type="text" placeholder="Type" value={newType} onChange={(e) => setNewType(e.target.value)} className="w-28 text-xs border rounded px-2.5 py-1.5 bg-background" />
+                    </div>
+                    <div className="flex gap-1.5">
+                      {['Dev', 'Design', 'PM', 'Support'].map(t => (
+                        <button key={t} onClick={() => setNewType(t)} className={`text-[10px] px-2 py-0.5 rounded-full border ${newType === t ? 'bg-primary text-primary-foreground border-primary' : 'bg-background hover:bg-accent'}`}>{t}</button>
+                      ))}
+                    </div>
+                    <Button size="sm" className="text-xs h-7" disabled={!newName.trim() || !newType.trim() || creating} onClick={handleCreateAndAssign}>
+                      {creating ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+                      Create & Assign
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
