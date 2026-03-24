@@ -42,6 +42,7 @@ Every team member must manually find their Telegram chat ID and give it to the a
   - `expires_at` (TIMESTAMPTZ) — 24 hours from creation
   - `used_at` (TIMESTAMPTZ, nullable)
   - `created_at` (TIMESTAMPTZ)
+  - RLS: owner-based policy for creation; service-role-bypass for token redemption from webhook
 - Add `status` field to `roles` table: `pending_link` | `linked` | `unlinked`
 
 **Security:**
@@ -284,6 +285,86 @@ Manual bot invite required. Manual channel ID entry. No user profile context. No
 | `roles` | Add `status` field (pending_link/linked/unlinked) |
 | `workspace_roles` | Change `category` TEXT to `category_id` UUID FK (see Section 2 migration strategy) |
 | `tasks` | Add `thread_context` TEXT, `category_id` UUID FK, `ai_prompt_version` TEXT |
+| `workspaces` | Add `team_group_chat_id` TEXT, `daily_digest_time` TEXT, `accent_color` TEXT |
+
+---
+
+## 7. Team Telegram Group (Transparency Layer)
+
+### Problem
+Individual assignees get notified, but the rest of the team has zero visibility into what tasks are flowing in, who's handling what, and what the status is. This creates silos.
+
+### Design
+
+**One team group per workspace:**
+- Admin adds the bot to an existing Telegram group (or creates one) and links it to a workspace in the dashboard
+- The group acts as a **read-only activity feed** — no action buttons, just visibility
+
+**What gets posted to the group:**
+- New task created: "New [Bug] from **#support** (Acme Corp workspace) — assigned to **Rahul**"
+- Task status change: "Rahul approved the response for task in #support"
+- Task dismissed: "Rahul dismissed the task from #billing"
+- Daily digest (optional): Summary of tasks created, completed, pending — posted at a configurable time
+
+**What stays private (individual DM only):**
+- Full AI draft text
+- Approve / Edit / Dismiss action buttons
+- Edit flow conversation
+
+**Bot commands in group:**
+- `/board` — Current task board: pending / in-progress / done counts for today
+- `/summary` — Quick summary of today's tasks with assignee names
+
+**Dashboard integration:**
+- Settings page shows "Team Group" section per workspace with link/unlink button
+- Status indicator: green = linked, gray = not configured
+
+**Database changes:**
+- Add `team_group_chat_id` (TEXT, nullable) to `workspaces` table
+- Add `daily_digest_time` (TEXT, nullable) to `workspaces` table — format: "HH:MM" in UTC, null = disabled
+
+---
+
+## 8. Multi-Workspace Clarity & Professional Dashboard
+
+### Problem
+Multiple Slack workspaces are technically supported but the dashboard doesn't clearly distinguish which workspace a task belongs to, who's assigned, or provide a professional overview across all workspaces.
+
+### Design
+
+**Workspace Switcher:**
+- Top of sidebar: dropdown showing all connected workspaces with their Slack team icons
+- "All Workspaces" view as default — shows aggregated data
+- Switch to a specific workspace to filter everything (tasks, activity, settings)
+- Each workspace has a distinct color accent (auto-assigned or admin-picked)
+
+**Task Labeling (across all views):**
+- Every task card/row shows:
+  - Workspace name + color badge (e.g., "Acme Corp" in blue)
+  - Slack channel name with # prefix
+  - Sender name + avatar (from Slack user cache)
+  - Category badge (emoji + name + color)
+  - Assignee name + Telegram link status indicator
+  - Status pill (color-coded: pending=yellow, approved=green, dismissed=gray, failed=red)
+  - Timestamp (relative: "2h ago")
+
+**Overview Dashboard (All Workspaces):**
+- Top metric cards broken down by workspace (stacked or side-by-side)
+- "Tasks by Workspace" chart — see which workspace generates most volume
+- "Tasks by Category" chart — see what types of requests dominate
+- "Team Load" section — who has the most pending tasks right now
+- Recent tasks feed with full workspace + assignee labeling
+
+**Overview Dashboard (Single Workspace):**
+- Same metrics but filtered to selected workspace
+- Channel breakdown: which channels generate the most tasks
+- Role/assignee performance: approval rate, average response time per person
+
+**Professional Polish:**
+- Consistent typography scale, proper spacing, subtle shadows
+- Data-dense but not cluttered — progressive disclosure (click to expand details)
+- Empty states with helpful CTAs ("No tasks yet — connect a Slack workspace to get started")
+- Breadcrumbs on every page showing: All Workspaces > Acme Corp > Tasks
 
 ---
 
