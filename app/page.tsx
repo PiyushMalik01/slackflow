@@ -141,14 +141,12 @@ function Navbar() {
   }, [])
 
   return (
-    <motion.nav
-      className={`fixed z-50 transition-all duration-500 ease-in-out ${
+    <nav
+      className={`fixed z-50 left-0 right-0 mx-auto transition-all duration-500 ease-in-out ${
         scrolled
-          ? 'left-1/2 -translate-x-1/2 top-4 w-[90%] sm:w-auto sm:max-w-2xl rounded-full border border-border/60 bg-background/80 backdrop-blur-xl shadow-lg px-6 py-2'
-          : 'left-0 top-0 w-full bg-background/80 backdrop-blur-md border-b border-border/40 px-6 py-3'
+          ? 'top-4 w-[90%] max-w-2xl rounded-full border border-border/60 bg-background/80 backdrop-blur-xl shadow-lg px-6 py-2'
+          : 'top-0 w-full bg-background/80 backdrop-blur-md border-b border-border/40 px-6 py-3'
       }`}
-      layout
-      transition={{ layout: { duration: 0.4, ease: 'easeInOut' } }}
     >
       <div
         className={`flex items-center justify-between gap-4 sm:gap-6 ${
@@ -190,7 +188,7 @@ function Navbar() {
           <ThemeToggle />
         </div>
       </div>
-    </motion.nav>
+    </nav>
   )
 }
 
@@ -450,7 +448,7 @@ export default function LandingPage() {
             imageSize={BRAND_LOGO_SIZES.landingFooter}
             textClassName="font-medium text-foreground"
           />
-          <p className="text-sm text-muted-foreground">Built with AI</p>
+          <p className="text-sm text-muted-foreground">Built with Love</p>
           <p className="text-xs text-muted-foreground/60">
             &copy; {new Date().getFullYear()} SlackFlow. All rights reserved.
           </p>
