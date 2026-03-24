@@ -1,141 +1,206 @@
-import { classify } from '@/lib/slack/classifier'
-import { runAiDraftPipeline } from '@/lib/ai/pipeline'
+import { getServiceClient } from '@/lib/db/client'
+import { tryClaimEvent } from '@/lib/utils/idempotency'
+import { runAiPipeline } from '@/lib/ai/pipeline'
+import { resolveSlackUser } from '@/lib/slack/user-cache'
 import { notifyAssignee } from '@/lib/telegram/notify'
-import {
-  getWorkspaceByTeamId,
-  resolveRole,
-  createTask,
-  updateTaskStatus,
-  logActivity,
-  checkDuplicate,
-} from '@/lib/db/queries'
-import { createCorrelatedLogger } from '@/lib/utils/logger'
-import type { TaskCategory } from '@/lib/db/types'
+import { notifyTeamGroup } from '@/lib/telegram/group-notify'
+import { getCategories, resolveRole } from '@/lib/db/queries'
+import { decrypt } from '@/lib/utils/security'
+import { logger } from '@/lib/utils/logger'
+import { WebClient } from '@slack/web-api'
 
-interface SlackMessageEvent {
+interface SlackEvent {
   type: string
   text: string
   user: string
   channel: string
   ts: string
-  team: string
-  username?: string
+  thread_ts?: string
   bot_id?: string
-  subtype?: string
+  event_id?: string
+  team?: string
+  username?: string
 }
 
-export async function handleSlackMessage(event: SlackMessageEvent): Promise<void> {
-  const log = createCorrelatedLogger(`slack_${event.ts}`)
+export async function handleSlackMessage(event: SlackEvent, workspaceId: string): Promise<void> {
+  const log = logger.child({ eventTs: event.ts, channel: event.channel })
+  const supabase = getServiceClient()
 
-  // Skip bot messages to prevent loops
-  if (event.bot_id || event.subtype === 'bot_message') {
+  // Skip bot messages
+  if (event.bot_id) {
     log.debug('Skipping bot message')
     return
   }
 
+  // Idempotency check
+  const eventId = event.event_id || `${workspaceId}:${event.channel}:${event.ts}`
+  const claimed = await tryClaimEvent(eventId, workspaceId)
+  if (!claimed) {
+    log.info('Duplicate event, skipping')
+    return
+  }
+
+  // Load workspace
+  const { data: workspace } = await supabase
+    .from('workspaces')
+    .select('*')
+    .eq('id', workspaceId)
+    .single()
+
+  if (!workspace) {
+    log.error('Workspace not found')
+    return
+  }
+
+  // Check monitored channels
+  const monitoredChannels = workspace.monitored_channels || []
+  if (monitoredChannels.length > 0 && !monitoredChannels.includes(event.channel)) {
+    log.debug('Channel not monitored, skipping')
+    return
+  }
+
+  // Decrypt access token
+  let accessToken: string
   try {
-    // 1. Load workspace
-    const workspace = await getWorkspaceByTeamId(event.team)
-    log.info({ workspace: workspace.name }, 'Workspace loaded')
+    accessToken = decrypt(workspace.access_token_enc, workspace.access_token_iv)
+  } catch (err) {
+    log.error({ err }, 'Failed to decrypt access token')
+    return
+  }
 
-    // 2. Check channel filter
-    if (workspace.monitored_channels?.length > 0 && !workspace.monitored_channels.includes(event.channel)) {
-      log.debug({ channel: event.channel }, 'Channel not monitored — skipping')
-      return
-    }
+  // Resolve sender name (non-blocking)
+  let senderName = event.username || event.user
+  try {
+    const cachedUser = await resolveSlackUser(accessToken, workspaceId, event.user)
+    senderName = cachedUser.display_name
+  } catch (err) {
+    log.warn({ err }, 'Failed to resolve sender, using fallback')
+  }
 
-    // 3. Deduplication check
-    const isDuplicate = await checkDuplicate(workspace.id, event.channel, event.ts)
-    if (isDuplicate) {
-      log.warn({ ts: event.ts }, 'Duplicate event — skipping')
-      return
-    }
-
-    // 4. Classify
-    const classified = classify(event.text)
-    log.info({ category: classified.category, confidence: classified.confidence }, 'Classified')
-
-    // 5. Resolve role
-    const role = await resolveRole(workspace.id, classified.category as TaskCategory)
-    if (!role) {
-      log.warn({ category: classified.category }, 'No role configured — creating task without assignee')
-    }
-
-    // 6. Create task record
-    const task = await createTask({
-      workspace_id: workspace.id,
-      channel: event.channel,
-      thread_ts: event.ts,
-      original_text: event.text,
-      sender_name: event.username ?? null,
-      category: classified.category as TaskCategory,
-      category_confidence: classified.confidence,
-      status: 'pending',
-      role_id: role?.id ?? null,
-    })
-
-    await logActivity({
-      task_id: task.id,
-      workspace_id: workspace.id,
-      actor: 'system',
-      action: 'task_created',
-      details: {
-        category: classified.category,
-        confidence: classified.confidence,
-        channel: event.channel,
-      },
-    })
-    log.info({ taskId: task.id }, 'Task created')
-
-    // 7. Run AI draft pipeline
-    let draft: string | null = null
+  // Fetch thread context if this is a thread reply
+  let threadContext: string | null = null
+  if (event.thread_ts && event.thread_ts !== event.ts) {
     try {
-      const result = await runAiDraftPipeline({
-        id: task.id,
-        workspace_id: workspace.id,
-        original_text: event.text,
-        category: classified.category,
+      const client = new WebClient(accessToken)
+      const result = await client.conversations.replies({
+        channel: event.channel,
+        ts: event.thread_ts,
+        limit: 1,
       })
-      draft = result.draft
-    } catch (aiError) {
-      log.error({ aiError }, 'AI pipeline failed — continuing without draft')
-      // Task is already marked failed inside pipeline — we continue to notify anyway
+      const parentMsg = result.messages?.[0]
+      if (parentMsg?.text) {
+        threadContext = parentMsg.text.substring(0, 500)
+      }
+    } catch (err) {
+      log.warn({ err }, 'Failed to fetch thread context')
     }
+  }
 
-    // 8. Notify assignee via Telegram
-    if (role?.telegram_chat_id) {
-      const messageId = await notifyAssignee({
-        telegramChatId: role.telegram_chat_id,
+  // Load categories
+  const categories = await getCategories(workspace.owner_id)
+
+  // Create task first with status 'pending' so we have a real taskId for the AI pipeline
+  const { data: task, error: taskError } = await supabase.from('tasks').insert({
+    workspace_id: workspaceId,
+    channel: event.channel,
+    thread_ts: event.thread_ts || event.ts,
+    original_text: event.text,
+    sender_name: senderName,
+    status: 'pending',
+    ai_model: process.env.AI_MODEL || 'gpt-4o-mini',
+    thread_context: threadContext,
+  }).select().single()
+
+  if (taskError || !task) {
+    log.error({ taskError }, 'Failed to create task')
+    return
+  }
+
+  // Run AI pipeline (classify + draft); it updates the task record in-place
+  const aiResult = await runAiPipeline({
+    taskId: task.id,
+    workspaceId,
+    ownerId: workspace.owner_id,
+    message: event.text,
+    senderName,
+    channel: event.channel,
+    threadContext,
+  })
+
+  // Resolve matched category from categories list
+  const matchedCategory = categories.find(
+    (c) => c.name.toLowerCase() === aiResult.category.toLowerCase()
+  )
+  const categoryId = matchedCategory?.id || null
+
+  // Resolve role for this category (resolveRole returns a role row or null)
+  let role: { id: string; telegram_chat_id: string | null; name: string } | null = null
+  if (categoryId) {
+    role = await resolveRole(workspaceId, categoryId)
+  }
+
+  // Update task with category + role info (AI pipeline already set draft/category fields)
+  await supabase.from('tasks').update({
+    category_id: categoryId,
+    role_id: role?.id || null,
+    sender_name: senderName,
+  }).eq('id', task.id)
+
+  // Notify assignee via Telegram
+  if (role?.telegram_chat_id) {
+    try {
+      const msgId = await notifyAssignee({
+        chatId: role.telegram_chat_id,
         taskId: task.id,
         workspaceName: workspace.name,
         channel: event.channel,
-        category: classified.category,
-        confidence: classified.confidence,
+        senderName,
+        category: aiResult.category,
+        categoryEmoji: matchedCategory?.emoji || '',
+        confidence: aiResult.confidence,
         originalText: event.text,
-        draftText: draft,
+        draftText: aiResult.draft,
       })
-
-      if (messageId) {
-        await updateTaskStatus(task.id, draft ? 'draft_ready' : 'pending', {
-          telegram_message_id: messageId,
-          role_id: role.id,
-        })
-
-        await logActivity({
-          task_id: task.id,
-          workspace_id: workspace.id,
-          actor: 'system',
-          action: 'telegram_notified',
-          details: { role: role.name, chatId: role.telegram_chat_id },
-        })
+      if (msgId) {
+        await supabase.from('tasks').update({ telegram_message_id: msgId }).eq('id', task.id)
       }
-    } else {
-      log.warn({ taskId: task.id }, 'No Telegram chat ID for role — task awaits manual action')
+    } catch (err) {
+      log.error({ err }, 'Failed to notify assignee')
     }
-
-    log.info({ taskId: task.id }, 'Pipeline completed')
-  } catch (error) {
-    log.error({ error }, 'Orchestrator error')
-    // Don't rethrow — Slack requires a 200 response to avoid retries
   }
+
+  // Notify team group (non-blocking)
+  if (workspace.team_group_chat_id) {
+    try {
+      await notifyTeamGroup({
+        groupChatId: workspace.team_group_chat_id,
+        workspaceName: workspace.name,
+        channel: event.channel,
+        category: aiResult.category,
+        categoryEmoji: matchedCategory?.emoji || '',
+        assigneeName: role?.name || 'Unassigned',
+        senderName,
+        action: 'created',
+        taskPreview: event.text,
+      })
+    } catch (err) {
+      log.error({ err }, 'Failed to notify team group')
+    }
+  }
+
+  // Log activity
+  await supabase.from('activity_log').insert({
+    workspace_id: workspaceId,
+    task_id: task.id,
+    actor: 'system',
+    action: 'task_created',
+    details: {
+      category: aiResult.category,
+      confidence: aiResult.confidence,
+      assignee: role?.name || null,
+      has_draft: !!aiResult.draft,
+    },
+  })
+
+  log.info({ taskId: task.id, category: aiResult.category, assignee: role?.name }, 'Task created and routed')
 }
