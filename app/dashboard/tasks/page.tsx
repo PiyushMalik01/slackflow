@@ -1,4 +1,4 @@
-import { createAuthClient, getServiceClient } from '@/lib/db/client'
+import { getAuthUser, getServiceClient } from '@/lib/db/client'
 import { listWorkspacesForUser, getCategories, listRolesForUser } from '@/lib/db/queries'
 import { Card, CardContent } from '@/components/ui/card'
 import { ListChecks } from 'lucide-react'
@@ -15,8 +15,7 @@ export default async function TasksPage({
   searchParams: Promise<{ status?: string; category?: string; search?: string; page?: string }>
 }) {
   // Layout already validates auth and redirects — just get user ID for queries
-  const supabase = await createAuthClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
 
   const params = await searchParams
   const page = Math.max(1, parseInt(params.page ?? '1'))

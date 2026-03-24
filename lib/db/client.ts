@@ -1,5 +1,6 @@
 // Server-only Supabase clients — imported ONLY in Server Components & API routes
 // Do NOT import this in Client Components
+import { cache } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient as createSSRClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
@@ -18,6 +19,13 @@ export function getServiceClient() {
   if (!_serviceClient) _serviceClient = createServiceClient()
   return _serviceClient
 }
+
+// ── Cached auth — deduplicates getUser() calls within a single request ────────
+export const getAuthUser = cache(async () => {
+  const supabase = await createAuthClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  return user
+})
 
 // ── Auth-aware server client (Server Components + protected routes) ───────────
 export async function createAuthClient() {

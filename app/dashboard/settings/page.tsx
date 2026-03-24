@@ -1,4 +1,4 @@
-import { createAuthClient, getServiceClient } from '@/lib/db/client'
+import { getAuthUser, getServiceClient } from '@/lib/db/client'
 import { getCategories, seedDefaultCategories } from '@/lib/db/queries'
 import { SettingsClient } from '@/components/settings-interactive'
 
@@ -6,8 +6,7 @@ export const metadata = { title: 'Settings' }
 
 export default async function SettingsPage() {
   // Layout already validates auth and redirects — just get user ID for queries
-  const supabase = await createAuthClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
 
   const svc = getServiceClient()
 

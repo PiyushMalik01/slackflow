@@ -1,4 +1,4 @@
-import { createAuthClient, getServiceClient } from '@/lib/db/client'
+import { getAuthUser, getServiceClient } from '@/lib/db/client'
 import { listWorkspacesForUser, listActivityLog } from '@/lib/db/queries'
 import {
   Activity, Plus, Sparkles, Check, X, AlertTriangle,
@@ -96,8 +96,7 @@ export default async function ActivityPage({
 }: {
   searchParams: Promise<{ page?: string; action?: string }>
 }) {
-  const supabase = await createAuthClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
 
   const params = await searchParams
   const page = Math.max(1, parseInt(params.page || '1', 10))

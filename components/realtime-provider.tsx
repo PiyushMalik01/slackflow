@@ -29,7 +29,7 @@ export function RealtimeProvider({ children }: RealtimeProviderProps) {
       if (refreshTimer) clearTimeout(refreshTimer)
       refreshTimer = setTimeout(() => {
         router.refresh()
-      }, 500) // debounce 500ms — batches rapid changes
+      }, 2000) // debounce 2000ms — batches rapid changes, reduces re-render churn
     }
 
     let channel = supabase.channel('dashboard-realtime')

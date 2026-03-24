@@ -1,4 +1,4 @@
-import { createAuthClient, getServiceClient } from '@/lib/db/client'
+import { getAuthUser, getServiceClient } from '@/lib/db/client'
 import { getDashboardMetrics, getRecentTasks, getSetupStatus, getCategories, listWorkspacesForUser } from '@/lib/db/queries'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CategoryBadge } from '@/components/category-badge'
@@ -35,8 +35,7 @@ function getRelativeTime(dateStr: string): string {
 }
 
 export default async function DashboardPage() {
-  const supabase = await createAuthClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const user = await getAuthUser()
 
   const [metrics, recentTasks, setup, categories, workspaces] = await Promise.all([
     getDashboardMetrics(user!.id).catch(() => ({
