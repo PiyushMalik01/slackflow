@@ -7,6 +7,7 @@ import {
   Tag, Sliders, CheckCircle2, XCircle, RefreshCw,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -80,6 +81,7 @@ function CategoriesTab({ initialCategories }: { initialCategories: Category[] })
   const [categories, setCategories] = useState(initialCategories)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [deleteCategoryId, setDeleteCategoryId] = useState<string | null>(null)
 
   return (
     <div className="space-y-4 mt-4">
@@ -148,21 +150,31 @@ function CategoriesTab({ initialCategories }: { initialCategories: Category[] })
               key={cat.id}
               category={cat}
               onEdit={() => setEditingId(cat.id)}
-              onDelete={async () => {
-                if (!confirm('Delete this category? Tasks using it will become uncategorized.')) return
-                const res = await fetch(`/api/categories?id=${cat.id}`, { method: 'DELETE' })
-                if (res.ok) {
-                  setCategories(prev => prev.filter(c => c.id !== cat.id))
-                  toast.success('Category deleted')
-                  router.refresh()
-                } else {
-                  toast.error('Failed to delete category')
-                }
-              }}
+              onDelete={() => setDeleteCategoryId(cat.id)}
             />
           )
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteCategoryId !== null}
+        onOpenChange={(open) => { if (!open) setDeleteCategoryId(null) }}
+        title="Delete Category"
+        description="Delete this category? Tasks using it will become uncategorized. This action cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={async () => {
+          if (!deleteCategoryId) return
+          const res = await fetch(`/api/categories?id=${deleteCategoryId}`, { method: 'DELETE' })
+          if (res.ok) {
+            setCategories(prev => prev.filter(c => c.id !== deleteCategoryId))
+            toast.success('Category deleted')
+            router.refresh()
+          } else {
+            toast.error('Failed to delete category')
+          }
+        }}
+      />
 
       {categories.length === 0 && !showAddForm && (
         <div className="py-12 text-center text-muted-foreground text-sm">

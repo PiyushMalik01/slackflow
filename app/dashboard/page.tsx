@@ -1,8 +1,9 @@
-import { createAuthClient } from '@/lib/db/client'
-import { getDashboardMetrics, getRecentTasks, getSetupStatus, getCategories } from '@/lib/db/queries'
+import { createAuthClient, getServiceClient } from '@/lib/db/client'
+import { getDashboardMetrics, getRecentTasks, getSetupStatus, getCategories, listWorkspacesForUser } from '@/lib/db/queries'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CategoryBadge } from '@/components/category-badge'
 import { StatusPill } from '@/components/status-pill'
+import { DashboardCharts } from '@/components/dashboard-charts'
 import { ListChecks, TrendingUp, Clock, Hash, ArrowRight, CheckCircle2, Circle } from 'lucide-react'
 import Link from 'next/link'
 
@@ -34,11 +35,10 @@ function getRelativeTime(dateStr: string): string {
 }
 
 export default async function DashboardPage() {
-  // Layout already validates auth and redirects — just get user ID for queries
   const supabase = await createAuthClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const [metrics, recentTasks, setup, categories] = await Promise.all([
+  const [metrics, recentTasks, setup, categories, workspaces] = await Promise.all([
     getDashboardMetrics(user!.id).catch(() => ({
       tasksToday: 0, approvalRate: 0, pendingCount: 0, totalTasks: 0,
     })),
@@ -47,10 +47,67 @@ export default async function DashboardPage() {
       hasWorkspace: false, hasRoles: false, hasLinkedMembers: false, hasCategories: false,
     })),
     getCategories(user!.id).catch(() => []),
+    listWorkspacesForUser(user!.id).catch(() => []),
   ])
 
   // Build category lookup map for enriching tasks with emoji/color
   const categoryMap = new Map(categories.map((c: any) => [c.name.toLowerCase(), c]))
+
+  // --- Chart data: category distribution and status distribution ---
+  const categoryData: { name: string; count: number; color: string }[] = []
+  const statusData: { name: string; count: number; color: string }[] = []
+
+  const wsIds = workspaces.map((w: any) => w.id)
+  if (wsIds.length > 0) {
+    const db = getServiceClient()
+
+    // Fetch all tasks for aggregation
+    const { data: allTasks } = await db
+      .from('tasks')
+      .select('category, status')
+      .in('workspace_id', wsIds)
+
+    if (allTasks && allTasks.length > 0) {
+      // Category distribution
+      const catCounts: Record<string, number> = {}
+      const statusCounts: Record<string, number> = {}
+
+      for (const t of allTasks) {
+        const cat = t.category || 'Uncategorized'
+        catCounts[cat] = (catCounts[cat] || 0) + 1
+        statusCounts[t.status] = (statusCounts[t.status] || 0) + 1
+      }
+
+      for (const [name, count] of Object.entries(catCounts)) {
+        const catMeta = categoryMap.get(name.toLowerCase())
+        categoryData.push({
+          name,
+          count,
+          color: catMeta?.color || '#6B7280',
+        })
+      }
+      categoryData.sort((a, b) => b.count - a.count)
+
+      const STATUS_COLORS: Record<string, string> = {
+        pending: '#F59E0B',
+        draft_ready: '#8B5CF6',
+        approved: '#22C55E',
+        sent: '#22C55E',
+        edited: '#10B981',
+        dismissed: '#6B7280',
+        failed: '#EF4444',
+      }
+
+      for (const [name, count] of Object.entries(statusCounts)) {
+        statusData.push({
+          name,
+          count,
+          color: STATUS_COLORS[name] || '#6B7280',
+        })
+      }
+      statusData.sort((a, b) => b.count - a.count)
+    }
+  }
 
   const isFullySetUp = setup.hasWorkspace && setup.hasRoles && setup.hasCategories && setup.hasLinkedMembers
 
@@ -122,6 +179,11 @@ export default async function DashboardPage() {
           </Card>
         ))}
       </div>
+
+      {/* Charts */}
+      {(categoryData.length > 0 || statusData.length > 0) && (
+        <DashboardCharts categoryData={categoryData} statusData={statusData} />
+      )}
 
       {/* Recent Tasks */}
       <Card>

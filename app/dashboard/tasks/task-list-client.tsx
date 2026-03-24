@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { TaskCard } from '@/components/task-card'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Button } from '@/components/ui/button'
 import { Sparkles, Trash2, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -32,6 +33,7 @@ interface TaskListClientProps {
 export function TaskListClient({ tasks, categories }: TaskListClientProps) {
   const router = useRouter()
   const [aiLoading, setAiLoading] = useState<string | null>(null)
+  const [cleanNoiseDialogOpen, setCleanNoiseDialogOpen] = useState(false)
 
   const handleAiAction = async (action: 'recategorize' | 'clean_noise') => {
     if (tasks.length === 0) {
@@ -96,10 +98,7 @@ export function TaskListClient({ tasks, categories }: TaskListClientProps) {
             variant="outline"
             size="sm"
             disabled={aiLoading !== null}
-            onClick={() => {
-              if (!confirm('AI will analyze and remove noise/spam tasks. Continue?')) return
-              handleAiAction('clean_noise')
-            }}
+            onClick={() => setCleanNoiseDialogOpen(true)}
           >
             {aiLoading === 'clean_noise' ? (
               <Loader2 className="h-3 w-3 mr-1 animate-spin" />
@@ -110,6 +109,16 @@ export function TaskListClient({ tasks, categories }: TaskListClientProps) {
           </Button>
         </div>
       )}
+
+      <ConfirmDialog
+        open={cleanNoiseDialogOpen}
+        onOpenChange={setCleanNoiseDialogOpen}
+        title="Clean Noise Tasks"
+        description="AI will analyze and remove noise/spam tasks. This cannot be undone. Continue?"
+        confirmLabel="Clean Noise"
+        variant="danger"
+        onConfirm={() => handleAiAction('clean_noise')}
+      />
 
       {/* Task list */}
       <div className="space-y-2">

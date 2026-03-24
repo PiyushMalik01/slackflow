@@ -7,6 +7,7 @@ import {
   AlertTriangle, Users, Route,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -101,6 +102,7 @@ function MembersTab({ initialRoles }: { initialRoles: Role[] }) {
   const [roles, setRoles] = useState(initialRoles)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
+  const [deleteMemberId, setDeleteMemberId] = useState<string | null>(null)
 
   return (
     <div className="space-y-4 mt-4">
@@ -169,21 +171,31 @@ function MembersTab({ initialRoles }: { initialRoles: Role[] }) {
               key={role.id}
               role={role}
               onEdit={() => setEditingId(role.id)}
-              onDelete={async () => {
-                if (!confirm('Delete this member? Route mappings will be removed.')) return
-                const res = await fetch(`/api/roles?id=${role.id}`, { method: 'DELETE' })
-                if (res.ok) {
-                  setRoles(prev => prev.filter(r => r.id !== role.id))
-                  toast.success('Member removed')
-                  router.refresh()
-                } else {
-                  toast.error('Failed to delete member')
-                }
-              }}
+              onDelete={() => setDeleteMemberId(role.id)}
             />
           )
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteMemberId !== null}
+        onOpenChange={(open) => { if (!open) setDeleteMemberId(null) }}
+        title="Delete Member"
+        description="Delete this member? Route mappings will be removed. This action cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={async () => {
+          if (!deleteMemberId) return
+          const res = await fetch(`/api/roles?id=${deleteMemberId}`, { method: 'DELETE' })
+          if (res.ok) {
+            setRoles(prev => prev.filter(r => r.id !== deleteMemberId))
+            toast.success('Member removed')
+            router.refresh()
+          } else {
+            toast.error('Failed to delete member')
+          }
+        }}
+      />
 
       {roles.length === 0 && !showAddForm && (
         <div className="py-12 text-center text-muted-foreground text-sm">

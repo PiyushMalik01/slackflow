@@ -102,12 +102,44 @@ export default async function TasksPage({
     return `?${sp.toString()}`
   }
 
+  // Build status breakdown
+  const statusCounts: Record<string, number> = {}
+  for (const t of mappedTasks) {
+    statusCounts[t.status] = (statusCounts[t.status] || 0) + 1
+  }
+
+  const STATUS_DOT_COLORS: Record<string, string> = {
+    pending: '#F59E0B',
+    draft_ready: '#8B5CF6',
+    approved: '#22C55E',
+    sent: '#22C55E',
+    edited: '#10B981',
+    dismissed: '#6B7280',
+    failed: '#EF4444',
+  }
+
   return (
     <div className="max-w-6xl mx-auto space-y-6">
-      {/* Header */}
+      {/* Header with status breakdown */}
       <div>
         <h1 className="text-2xl font-bold">Tasks</h1>
-        <p className="text-sm text-muted-foreground mt-1">{total} total task{total !== 1 ? 's' : ''}</p>
+        <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+          <span className="text-sm text-muted-foreground">{total} total task{total !== 1 ? 's' : ''}</span>
+          {Object.entries(statusCounts).length > 0 && (
+            <div className="flex items-center gap-3">
+              <span className="text-muted-foreground/40">|</span>
+              {Object.entries(statusCounts).map(([status, count]) => (
+                <span key={status} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span
+                    className="h-2 w-2 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: STATUS_DOT_COLORS[status] || '#6B7280' }}
+                  />
+                  {count} {status.replace(/_/g, ' ')}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
