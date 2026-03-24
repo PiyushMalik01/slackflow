@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { createAuthClient, getServiceClient } from '@/lib/db/client'
+import { createAuthClient } from '@/lib/db/client'
 import { getCategories, createCategory, updateCategory, deleteCategory, seedDefaultCategories } from '@/lib/db/queries'
 import { validateOrigin } from '@/lib/utils/csrf'
 import { jsonOk, json400, json401, json403, json500 } from '@/lib/utils/api-helpers'
@@ -70,7 +70,7 @@ export async function PUT(req: NextRequest) {
     if (!parsed.success) return json400(parsed.error.issues[0]?.message || 'Invalid input')
 
     const { id, ...data } = parsed.data
-    await updateCategory(id, data)
+    await updateCategory(id, user.id, data)
     return jsonOk({ success: true })
   } catch {
     return json500()
@@ -88,12 +88,7 @@ export async function DELETE(req: NextRequest) {
     const id = searchParams.get('id')
     if (!id) return json400('Missing id')
 
-    // Verify the category belongs to the current user
-    const svc = getServiceClient()
-    const { data: cat } = await svc.from('categories').select('id, owner_id').eq('id', id).maybeSingle()
-    if (!cat || cat.owner_id !== user.id) return json403('Category not found')
-
-    await deleteCategory(id)
+    await deleteCategory(id, user.id)
     return jsonOk({ success: true })
   } catch {
     return json500()

@@ -107,13 +107,14 @@ export default async function ActivityPage({
   const workspaceMap = Object.fromEntries(workspaces.map(w => [w.id, w]))
 
   // Build a map of telegram chat IDs to role names for actor display
+  // Roles are scoped by owner_id (not workspace_id)
   const actorNameMap: Record<string, string> = {}
-  if (workspaceIds.length > 0) {
+  {
     const db = getServiceClient()
     const { data: roles } = await db
       .from('roles')
       .select('name, telegram_chat_id')
-      .in('workspace_id', workspaceIds)
+      .eq('owner_id', user!.id)
       .not('telegram_chat_id', 'is', null)
     if (roles) {
       for (const r of roles) {

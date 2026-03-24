@@ -25,9 +25,9 @@ export async function POST(req: NextRequest) {
     const { workspace_id, category_id, role_id } = parsed.data
 
     if (role_id) {
-      await setWorkspaceRole(workspace_id, category_id, role_id)
+      await setWorkspaceRole(workspace_id, category_id, role_id, user.id)
     } else {
-      await removeWorkspaceRole(workspace_id, category_id)
+      await removeWorkspaceRole(workspace_id, category_id, user.id)
     }
 
     return jsonOk({ success: true })

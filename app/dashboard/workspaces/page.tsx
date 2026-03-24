@@ -11,7 +11,7 @@ export const metadata = { title: 'Workspaces' }
 export default async function WorkspacesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ success?: string; error?: string }>
+  searchParams: Promise<{ success?: string; error?: string; detail?: string }>
 }) {
   // Layout already validates auth and redirects — just get user ID for queries
   const user = await getAuthUser()
@@ -26,6 +26,7 @@ export default async function WorkspacesPage({
     .order('installed_at', { ascending: false })
 
   const params = await searchParams
+  const isWorkspaceTaken = params.error === 'workspace_taken'
   const toast = params.success ? 'success' : params.error ? 'error' : null
 
   return (
@@ -51,7 +52,15 @@ export default async function WorkspacesPage({
           Workspace connected successfully.
         </div>
       )}
-      {toast === 'error' && (
+      {toast === 'error' && isWorkspaceTaken && (
+        <div className="flex items-center gap-2 bg-destructive/10 text-destructive border border-destructive/20 px-4 py-3 rounded-lg text-sm">
+          <AlertTriangle className="size-4 flex-shrink-0" />
+          <span>
+            <strong>Workspace already connected.</strong> This Slack workspace is already linked to another account and cannot be connected again.
+          </span>
+        </div>
+      )}
+      {toast === 'error' && !isWorkspaceTaken && (
         <div className="flex items-center gap-2 bg-destructive/10 text-destructive border border-destructive/20 px-4 py-3 rounded-lg text-sm">
           <XCircle className="size-4 flex-shrink-0" />
           Failed to connect workspace. Please try again.

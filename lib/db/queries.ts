@@ -33,6 +33,18 @@ export async function getWorkspaceById(id: string) {
 
 export async function upsertWorkspace(workspace: WorkspaceInsert) {
   const db = getServiceClient()
+
+  // Security: check if this Slack workspace is already owned by a different user
+  const { data: existing } = await db
+    .from('workspaces')
+    .select('id, owner_id')
+    .eq('slack_team_id', workspace.slack_team_id)
+    .maybeSingle()
+
+  if (existing && existing.owner_id !== workspace.owner_id) {
+    throw new Error('This Slack workspace is already connected by another account')
+  }
+
   const { data, error } = await db
     .from('workspaces')
     .upsert(workspace, { onConflict: 'slack_team_id' })
@@ -53,9 +65,13 @@ export async function listWorkspacesForUser(userId: string) {
   return data ?? []
 }
 
-export async function deleteWorkspace(id: string) {
+export async function deleteWorkspace(id: string, ownerId: string) {
   const db = getServiceClient()
-  const { error } = await db.from('workspaces').delete().eq('id', id)
+  const { error } = await db
+    .from('workspaces')
+    .delete()
+    .eq('id', id)
+    .eq('owner_id', ownerId)
   if (error) throw new DbError('workspace_delete_failed', error.message)
 }
 
@@ -81,16 +97,25 @@ export async function upsertRole(role: RoleInsert) {
 
 export async function updateRole(
   id: string,
+  ownerId: string,
   update: Partial<Pick<RoleInsert, 'name' | 'type' | 'telegram_chat_id'>>
 ) {
   const db = getServiceClient()
-  const { error } = await db.from('roles').update(update).eq('id', id)
+  const { error } = await db
+    .from('roles')
+    .update(update)
+    .eq('id', id)
+    .eq('owner_id', ownerId)
   if (error) throw new DbError('role_update_failed', error.message)
 }
 
-export async function deleteRole(id: string) {
+export async function deleteRole(id: string, ownerId: string) {
   const db = getServiceClient()
-  const { error } = await db.from('roles').delete().eq('id', id)
+  const { error } = await db
+    .from('roles')
+    .delete()
+    .eq('id', id)
+    .eq('owner_id', ownerId)
   if (error) throw new DbError('role_delete_failed', error.message)
 }
 
@@ -106,8 +131,16 @@ export async function resolveRole(workspaceId: string, categoryId: string) {
   return (data as { roles: Database['public']['Tables']['roles']['Row'] } | null)?.roles ?? null
 }
 
-export async function getWorkspaceRoles(workspaceId: string) {
+export async function getWorkspaceRoles(workspaceId: string, ownerId: string) {
   const db = getServiceClient()
+  // Verify workspace belongs to the requesting user before returning role mappings
+  const { data: ws } = await db
+    .from('workspaces')
+    .select('id')
+    .eq('id', workspaceId)
+    .eq('owner_id', ownerId)
+    .maybeSingle()
+  if (!ws) throw new DbError('workspace_not_found', 'Workspace not found or access denied')
   const { data, error } = await db
     .from('workspace_roles')
     .select('*, roles(*)')
@@ -116,16 +149,32 @@ export async function getWorkspaceRoles(workspaceId: string) {
   return data ?? []
 }
 
-export async function setWorkspaceRole(workspaceId: string, categoryId: string, roleId: string) {
+export async function setWorkspaceRole(workspaceId: string, categoryId: string, roleId: string, ownerId: string) {
   const db = getServiceClient()
+  // Verify workspace belongs to the requesting user
+  const { data: ws } = await db
+    .from('workspaces')
+    .select('id')
+    .eq('id', workspaceId)
+    .eq('owner_id', ownerId)
+    .maybeSingle()
+  if (!ws) throw new DbError('workspace_not_found', 'Workspace not found or access denied')
   const { error } = await db
     .from('workspace_roles')
     .upsert({ workspace_id: workspaceId, category_id: categoryId, role_id: roleId }, { onConflict: 'workspace_id,category_id' })
   if (error) throw new DbError('workspace_role_set_failed', error.message)
 }
 
-export async function removeWorkspaceRole(workspaceId: string, categoryId: string) {
+export async function removeWorkspaceRole(workspaceId: string, categoryId: string, ownerId: string) {
   const db = getServiceClient()
+  // Verify workspace belongs to the requesting user
+  const { data: ws } = await db
+    .from('workspaces')
+    .select('id')
+    .eq('id', workspaceId)
+    .eq('owner_id', ownerId)
+    .maybeSingle()
+  if (!ws) throw new DbError('workspace_not_found', 'Workspace not found or access denied')
   const { error } = await db
     .from('workspace_roles')
     .delete()
@@ -165,6 +214,7 @@ export async function getTaskById(id: string) {
 }
 
 export async function listTasks(filters: {
+  ownerId: string
   workspaceId?: string
   status?: TaskStatus
   category?: TaskCategory
@@ -174,7 +224,28 @@ export async function listTasks(filters: {
 }) {
   const db = getServiceClient()
   let q = db.from('tasks').select('*, workspaces(name, slack_team_id), roles(name, type)', { count: 'exact' })
-  if (filters.workspaceId) q = q.eq('workspace_id', filters.workspaceId)
+
+  if (filters.workspaceId) {
+    // Verify the requested workspace belongs to this owner before filtering by it
+    const { data: ws } = await db
+      .from('workspaces')
+      .select('id')
+      .eq('id', filters.workspaceId)
+      .eq('owner_id', filters.ownerId)
+      .maybeSingle()
+    if (!ws) return { tasks: [], total: 0 }
+    q = q.eq('workspace_id', filters.workspaceId)
+  } else {
+    // Scope to all workspaces owned by this user
+    const { data: workspaces } = await db
+      .from('workspaces')
+      .select('id')
+      .eq('owner_id', filters.ownerId)
+    const wsIds = workspaces?.map(w => w.id) ?? []
+    if (wsIds.length === 0) return { tasks: [], total: 0 }
+    q = q.in('workspace_id', wsIds)
+  }
+
   if (filters.status) q = q.eq('status', filters.status)
   if (filters.category) q = q.eq('category', filters.category)
   if (filters.search) q = q.ilike('original_text', `%${filters.search}%`)
@@ -361,7 +432,7 @@ export async function createCategory(data: {
   return cat
 }
 
-export async function updateCategory(id: string, data: {
+export async function updateCategory(id: string, ownerId: string, data: {
   name?: string
   description?: string
   color?: string
@@ -372,14 +443,16 @@ export async function updateCategory(id: string, data: {
     .from('categories')
     .update(data)
     .eq('id', id)
+    .eq('owner_id', ownerId)
   if (error) throw new DbError('category_update_failed', 'Failed to update category')
 }
 
-export async function deleteCategory(id: string) {
+export async function deleteCategory(id: string, ownerId: string) {
   const { error } = await getServiceClient()
     .from('categories')
     .delete()
     .eq('id', id)
+    .eq('owner_id', ownerId)
   if (error) throw new DbError('category_delete_failed', 'Failed to delete category')
 }
 
