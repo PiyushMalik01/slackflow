@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Loader2, CheckCircle } from 'lucide-react'
@@ -13,7 +13,21 @@ export default function SignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [checking, setChecking] = useState(true)
   const [state, setState] = useState<'idle' | 'confirm_email' | 'done'>('idle')
+
+  useEffect(() => {
+    async function checkUser() {
+      const supabase = createBrowserClient()
+      const { data } = await supabase.auth.getUser()
+      if (data?.user) {
+        router.replace('/dashboard')
+        return
+      }
+      setChecking(false)
+    }
+    checkUser()
+  }, [router])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -61,6 +75,14 @@ export default function SignupPage() {
             <Link href="/login" className="text-primary hover:underline">Sign in</Link>
           </p>
         </div>
+      </div>
+    )
+  }
+
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     )
   }

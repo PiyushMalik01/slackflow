@@ -14,6 +14,7 @@ function LoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [checking, setChecking] = useState(true)
   const supabase = createBrowserClient()
 
   const nextPath = searchParams.get('next') ?? '/dashboard'
@@ -21,7 +22,11 @@ function LoginForm() {
   useEffect(() => {
     async function checkUser() {
       const { data } = await supabase.auth.getUser()
-      if (data?.user) router.replace(nextPath)
+      if (data?.user) {
+        router.replace(nextPath)
+        return
+      }
+      setChecking(false)
     }
     checkUser()
   }, [router, nextPath, supabase.auth])
@@ -37,6 +42,14 @@ function LoginForm() {
     } else {
       router.replace(nextPath)
     }
+  }
+
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    )
   }
 
   return (
