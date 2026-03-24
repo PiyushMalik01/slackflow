@@ -89,6 +89,12 @@ export async function PUT(req: NextRequest) {
     if (!parsed.success) return json400(parsed.error.issues[0]?.message || 'Invalid input')
 
     const { id, ...data } = parsed.data
+
+    // Verify the role belongs to the current user
+    const svc = getServiceClient()
+    const { data: role } = await svc.from('roles').select('id, owner_id').eq('id', id).maybeSingle()
+    if (!role || role.owner_id !== user.id) return json403('Role not found')
+
     await updateRole(id, { ...data, telegram_chat_id: data.telegram_chat_id || null })
     return jsonOk({ success: true })
   } catch {
@@ -106,6 +112,11 @@ export async function DELETE(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
     if (!id) return json400('Missing id')
+
+    // Verify the role belongs to the current user
+    const svc = getServiceClient()
+    const { data: role } = await svc.from('roles').select('id, owner_id').eq('id', id).maybeSingle()
+    if (!role || role.owner_id !== user.id) return json403('Role not found')
 
     await deleteRole(id)
     return jsonOk({ success: true })

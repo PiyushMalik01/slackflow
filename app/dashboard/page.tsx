@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createAuthClient } from '@/lib/db/client'
-import { getDashboardMetrics, getRecentTasks, getSetupStatus } from '@/lib/db/queries'
+import { getDashboardMetrics, getRecentTasks, getSetupStatus, getCategories } from '@/lib/db/queries'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CategoryBadge } from '@/components/category-badge'
 import { StatusPill } from '@/components/status-pill'
@@ -25,7 +25,7 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const [metrics, recentTasks, setup] = await Promise.all([
+  const [metrics, recentTasks, setup, categories] = await Promise.all([
     getDashboardMetrics(user.id).catch(() => ({
       tasksToday: 0, approvalRate: 0, pendingCount: 0, totalTasks: 0,
     })),
@@ -33,7 +33,11 @@ export default async function DashboardPage() {
     getSetupStatus(user.id).catch(() => ({
       hasWorkspace: false, hasRoles: false, hasLinkedMembers: false, hasCategories: false,
     })),
+    getCategories(user.id).catch(() => []),
   ])
+
+  // Build category lookup map for enriching tasks with emoji/color
+  const categoryMap = new Map(categories.map((c: any) => [c.name.toLowerCase(), c]))
 
   const isFullySetUp = setup.hasWorkspace && setup.hasRoles && setup.hasCategories && setup.hasLinkedMembers
 
@@ -121,7 +125,9 @@ export default async function DashboardPage() {
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {recentTasks.map((task: any) => (
+              {recentTasks.map((task: any) => {
+                const catMeta = task.category ? categoryMap.get(task.category.toLowerCase()) : null
+                return (
                 <div key={task.id} className="px-6 py-3.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 hover:bg-muted/30 transition-colors">
                   {/* Workspace badge */}
                   <span className="flex items-center gap-1.5 text-xs font-medium flex-shrink-0">
@@ -139,8 +145,8 @@ export default async function DashboardPage() {
                   {task.category && (
                     <CategoryBadge
                       name={task.category}
-                      emoji={task.category_emoji}
-                      color={task.category_color}
+                      emoji={catMeta?.emoji}
+                      color={catMeta?.color}
                     />
                   )}
                   {/* Role */}
@@ -154,7 +160,8 @@ export default async function DashboardPage() {
                     {getRelativeTime(task.created_at)}
                   </span>
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </CardContent>

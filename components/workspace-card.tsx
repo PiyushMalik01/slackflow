@@ -25,7 +25,7 @@ interface Workspace {
   installed_at: string
   monitored_channels: string[] | null
   accent_color?: string
-  team_group_id?: string | null
+  team_group_chat_id?: string | null
 }
 
 export function WorkspaceCard({ workspace }: { workspace: Workspace }) {
@@ -143,9 +143,9 @@ export function WorkspaceCard({ workspace }: { workspace: Workspace }) {
           )}
 
           {/* Team group status */}
-          {workspace.team_group_id && (
+          {workspace.team_group_chat_id && (
             <div className="mx-4 mb-3 text-xs text-muted-foreground">
-              Team group linked: <code className="bg-muted px-1.5 py-0.5 rounded text-[10px]">{workspace.team_group_id}</code>
+              Team group linked: <code className="bg-muted px-1.5 py-0.5 rounded text-[10px]">{workspace.team_group_chat_id}</code>
             </div>
           )}
 

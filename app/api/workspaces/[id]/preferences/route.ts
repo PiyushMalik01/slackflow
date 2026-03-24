@@ -9,7 +9,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params
 
-  let body: { accent_color?: string; telegram_group_chat_id?: string | null; daily_digest_time?: string | null }
+  let body: { accent_color?: string; team_group_chat_id?: string | null; daily_digest_time?: string | null }
   try {
     body = await req.json()
   } catch {
@@ -30,7 +30,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const updateData: Record<string, unknown> = {}
   if (body.accent_color !== undefined) updateData.accent_color = body.accent_color
-  if (body.telegram_group_chat_id !== undefined) updateData.telegram_group_chat_id = body.telegram_group_chat_id
+  if (body.team_group_chat_id !== undefined) updateData.team_group_chat_id = body.team_group_chat_id
   if (body.daily_digest_time !== undefined) updateData.daily_digest_time = body.daily_digest_time
 
   if (Object.keys(updateData).length === 0) {

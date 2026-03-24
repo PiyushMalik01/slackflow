@@ -25,10 +25,11 @@ export default async function TeamsPage() {
     .select('id, name')
     .eq('owner_id', user.id)
 
-  // Load workspace role mappings
-  const { data: workspaceRoles } = await svc
-    .from('workspace_roles')
-    .select('*')
+  // Load workspace role mappings (scoped to user's workspaces)
+  const wsIds = (workspaces || []).map((w: { id: string }) => w.id)
+  const { data: workspaceRoles } = wsIds.length > 0
+    ? await svc.from('workspace_roles').select('*').in('workspace_id', wsIds)
+    : { data: [] }
 
   // Load categories for routing tab
   const categories = await getCategories(user.id)

@@ -34,7 +34,7 @@ interface WorkspacePrefs {
   id: string
   name: string
   accent_color?: string | null
-  telegram_group_chat_id?: string | null
+  team_group_chat_id?: string | null
   daily_digest_time?: string | null
 }
 
@@ -349,7 +349,7 @@ function PreferencesTab({ workspaces }: { workspaces: WorkspacePrefs[] }) {
 function WorkspacePrefsCard({ workspace }: { workspace: WorkspacePrefs }) {
   const router = useRouter()
   const [accentColor, setAccentColor] = useState(workspace.accent_color || '#3B82F6')
-  const [telegramGroupId, setTelegramGroupId] = useState(workspace.telegram_group_chat_id || '')
+  const [telegramGroupId, setTelegramGroupId] = useState(workspace.team_group_chat_id || '')
   const [digestTime, setDigestTime] = useState(workspace.daily_digest_time || '')
   const [saving, setSaving] = useState(false)
 
@@ -361,7 +361,7 @@ function WorkspacePrefsCard({ workspace }: { workspace: WorkspacePrefs }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           accent_color: accentColor,
-          telegram_group_chat_id: telegramGroupId || null,
+          team_group_chat_id: telegramGroupId || null,
           daily_digest_time: digestTime || null,
         }),
       })

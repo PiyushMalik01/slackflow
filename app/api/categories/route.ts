@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
-import { createAuthClient } from '@/lib/db/client'
+import { createAuthClient, getServiceClient } from '@/lib/db/client'
 import { getCategories, createCategory, updateCategory, deleteCategory, seedDefaultCategories } from '@/lib/db/queries'
 import { validateOrigin } from '@/lib/utils/csrf'
 import { jsonOk, json400, json401, json403, json500 } from '@/lib/utils/api-helpers'
@@ -85,6 +85,11 @@ export async function DELETE(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
     if (!id) return json400('Missing id')
+
+    // Verify the category belongs to the current user
+    const svc = getServiceClient()
+    const { data: cat } = await svc.from('categories').select('id, owner_id').eq('id', id).maybeSingle()
+    if (!cat || cat.owner_id !== user.id) return json403('Category not found')
 
     await deleteCategory(id)
     return jsonOk({ success: true })

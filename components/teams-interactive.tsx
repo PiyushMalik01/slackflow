@@ -126,6 +126,8 @@ function MembersTab({ initialRoles }: { initialRoles: Role[] }) {
               body: JSON.stringify(data),
             })
             if (res.ok) {
+              const newRole = await res.json()
+              setRoles(prev => [...prev, newRole])
               toast.success('Member added successfully')
               setShowAddForm(false)
               router.refresh()

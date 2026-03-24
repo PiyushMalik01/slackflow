@@ -22,7 +22,7 @@ export default async function SettingsPage() {
   // Load workspaces for preferences tab
   const { data: workspaces } = await svc
     .from('workspaces')
-    .select('id, name, accent_color, telegram_group_chat_id, daily_digest_time')
+    .select('id, name, accent_color, team_group_chat_id, daily_digest_time')
     .eq('owner_id', user.id)
 
   return (
