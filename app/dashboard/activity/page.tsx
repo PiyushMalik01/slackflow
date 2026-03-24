@@ -1,4 +1,4 @@
-import { createAuthClient } from '@/lib/db/client'
+import { createAuthClient, getServiceClient } from '@/lib/db/client'
 import { listWorkspacesForUser, listActivityLog } from '@/lib/db/queries'
 import {
   Activity, Plus, Sparkles, Check, X, AlertTriangle,
@@ -106,6 +106,36 @@ export default async function ActivityPage({
   const workspaceIds = workspaces.map(w => w.id)
   const workspaceMap = Object.fromEntries(workspaces.map(w => [w.id, w]))
 
+  // Build a map of telegram chat IDs to role names for actor display
+  const actorNameMap: Record<string, string> = {}
+  if (workspaceIds.length > 0) {
+    const db = getServiceClient()
+    const { data: roles } = await db
+      .from('roles')
+      .select('name, telegram_chat_id')
+      .in('workspace_id', workspaceIds)
+      .not('telegram_chat_id', 'is', null)
+    if (roles) {
+      for (const r of roles) {
+        if (r.telegram_chat_id) actorNameMap[r.telegram_chat_id] = r.name
+      }
+    }
+  }
+
+  function formatActor(actor: string | null): string {
+    if (!actor) return ''
+    if (actor === 'system') return 'System'
+    if (actor === 'ai') return 'AI Assistant'
+    if (actor === 'admin') return 'Admin'
+    if (actor === 'telegram') return 'Team Member'
+    // Handle "telegram:XXXXX" format
+    if (actor.startsWith('telegram:')) {
+      const chatId = actor.replace('telegram:', '')
+      return actorNameMap[chatId] || 'Team Member'
+    }
+    return actor
+  }
+
   let logs: any[] = []
   let total = 0
 
@@ -195,7 +225,7 @@ export default async function ActivityPage({
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">
-                      {log.actor && <span>{log.actor}</span>}
+                      {log.actor && <span>{formatActor(log.actor)}</span>}
                       {log.tasks?.original_text && (
                         <span className="ml-1">
                           &mdash; {log.tasks.original_text.slice(0, 80)}

@@ -44,8 +44,8 @@ export function TaskCard({ task, categories, onTaskUpdated }: TaskCardProps) {
             {task.workspace_name}
           </span>
         )}
-        <span className="text-xs text-muted-foreground">#{task.channel}</span>
-        <span className="text-xs text-muted-foreground">{task.sender_name || 'Unknown'}</span>
+        <span className="text-xs text-muted-foreground">#{formatChannel(task.channel)}</span>
+        <span className="text-xs text-muted-foreground">{formatSender(task.sender_name)}</span>
         <CategoryBadge name={task.category} emoji={task.category_emoji} color={task.category_color} />
         {task.role_name && <span className="text-xs font-medium">{task.role_name}</span>}
         <StatusPill status={task.status} />
@@ -155,6 +155,24 @@ export function TaskCard({ task, categories, onTaskUpdated }: TaskCardProps) {
       )}
     </div>
   )
+}
+
+function formatSender(sender: string | null): string {
+  if (!sender) return 'Unknown'
+  // Hide raw Slack user IDs (U followed by alphanumeric)
+  if (/^U[A-Z0-9]{8,}$/i.test(sender)) return 'Slack User'
+  // Hide telegram-style UIDs
+  if (/^telegram:\d+$/i.test(sender)) return 'Team Member'
+  // Hide pure numeric IDs
+  if (/^\d{6,}$/.test(sender)) return 'Unknown'
+  return sender
+}
+
+function formatChannel(channel: string): string {
+  if (!channel) return 'unknown'
+  // If it looks like a Slack channel ID (C followed by alphanumeric), show generic label
+  if (/^C[A-Z0-9]{8,}$/i.test(channel)) return 'slack channel'
+  return channel
 }
 
 function getRelativeTime(dateStr: string): string {

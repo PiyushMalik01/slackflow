@@ -130,6 +130,16 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
     return
   }
 
+  // Resolve channel name from Slack API
+  let channelName = event.channel
+  try {
+    const client = new WebClient(accessToken)
+    const info = await client.conversations.info({ channel: event.channel })
+    channelName = info.channel?.name || event.channel
+  } catch (err) {
+    log.warn({ err }, 'Failed to resolve channel name, using ID as fallback')
+  }
+
   // Resolve sender name (non-blocking)
   let senderName = event.username || event.user
   try {
@@ -164,7 +174,7 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
   // Create task first with status 'pending' so we have a real taskId for the AI pipeline
   const { data: task, error: taskError } = await supabase.from('tasks').insert({
     workspace_id: workspaceId,
-    channel: event.channel,
+    channel: channelName,
     thread_ts: event.thread_ts || event.ts,
     original_text: event.text,
     sender_name: senderName,
@@ -215,7 +225,7 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
         chatId: role.telegram_chat_id,
         taskId: task.id,
         workspaceName: workspace.name,
-        channel: event.channel,
+        channel: channelName,
         senderName,
         category: aiResult.category,
         categoryEmoji: matchedCategory?.emoji || '',
@@ -237,7 +247,7 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
       await notifyTeamGroup({
         groupChatId: workspace.team_group_chat_id,
         workspaceName: workspace.name,
-        channel: event.channel,
+        channel: channelName,
         category: aiResult.category,
         categoryEmoji: matchedCategory?.emoji || '',
         assigneeName: role?.name || 'Unassigned',

@@ -124,9 +124,6 @@ export function WorkspaceCard({ workspace }: { workspace: Workspace }) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <CardTitle>{workspace.name}</CardTitle>
-                  <Badge variant="secondary" className="text-[10px]">
-                    {workspace.slack_team_id}
-                  </Badge>
                 </div>
                 <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
@@ -160,8 +157,9 @@ export function WorkspaceCard({ workspace }: { workspace: Workspace }) {
 
           {/* Team group status */}
           {workspace.team_group_chat_id && (
-            <div className="mx-4 mb-3 text-xs text-muted-foreground">
-              Team group linked: <code className="bg-muted px-1.5 py-0.5 rounded text-[10px]">{workspace.team_group_chat_id}</code>
+            <div className="mx-4 mb-3 text-xs text-muted-foreground flex items-center gap-1.5">
+              <Radio className="size-3" />
+              Telegram team group linked
             </div>
           )}
 

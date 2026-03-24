@@ -8,6 +8,20 @@ import Link from 'next/link'
 
 export const metadata = { title: 'Overview' }
 
+function formatSender(sender: string | null): string {
+  if (!sender) return 'Unknown'
+  if (/^U[A-Z0-9]{8,}$/i.test(sender)) return 'Slack User'
+  if (/^telegram:\d+$/i.test(sender)) return 'Team Member'
+  if (/^\d{6,}$/.test(sender)) return 'Unknown'
+  return sender
+}
+
+function formatChannel(channel: string): string {
+  if (!channel) return 'unknown'
+  if (/^C[A-Z0-9]{8,}$/i.test(channel)) return 'slack channel'
+  return channel
+}
+
 function getRelativeTime(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime()
   const mins = Math.floor(diff / 60000)
@@ -137,9 +151,9 @@ export default async function DashboardPage() {
                     {task.workspaces?.name || 'Unknown'}
                   </span>
                   {/* Channel */}
-                  <span className="text-xs text-muted-foreground flex-shrink-0">#{task.channel}</span>
+                  <span className="text-xs text-muted-foreground flex-shrink-0">#{formatChannel(task.channel)}</span>
                   {/* Sender */}
-                  <span className="text-xs text-muted-foreground flex-shrink-0">{task.sender_name || 'Unknown'}</span>
+                  <span className="text-xs text-muted-foreground flex-shrink-0">{formatSender(task.sender_name)}</span>
                   {/* Category */}
                   {task.category && (
                     <CategoryBadge
