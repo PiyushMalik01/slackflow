@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Plus, Save, Trash2, Edit2, X, Loader2,
   Tag, Sliders, CheckCircle2, XCircle, RefreshCw,
+  Brain, ExternalLink, Key, LogOut, Copy,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -39,9 +40,20 @@ interface WorkspacePrefs {
   daily_digest_time?: string | null
 }
 
+type AIStatus =
+  | { connected: false }
+  | {
+      connected: true
+      email: string | null
+      planType: string | null
+      authMethod: string
+      connectedAt: string | null
+    }
+
 interface SettingsClientProps {
   initialCategories: Category[]
   workspaces: WorkspacePrefs[]
+  aiStatus: AIStatus
 }
 
 // -- Main Client --------------------------------------------------------------
@@ -49,6 +61,7 @@ interface SettingsClientProps {
 export function SettingsClient({
   initialCategories,
   workspaces,
+  aiStatus,
 }: SettingsClientProps) {
   return (
     <Tabs defaultValue="categories">
@@ -61,6 +74,10 @@ export function SettingsClient({
           <Sliders className="size-3.5" />
           Preferences
         </TabsTrigger>
+        <TabsTrigger value="ai">
+          <Brain className="size-3.5" />
+          AI
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="categories">
@@ -70,7 +87,352 @@ export function SettingsClient({
       <TabsContent value="preferences">
         <PreferencesTab workspaces={workspaces} />
       </TabsContent>
+
+      <TabsContent value="ai">
+        <AITab initialStatus={aiStatus} />
+      </TabsContent>
     </Tabs>
+  )
+}
+
+// -- AI Tab -------------------------------------------------------------------
+
+function AITab({ initialStatus }: { initialStatus: AIStatus }) {
+  const router = useRouter()
+  const [status, setStatus] = useState<AIStatus>(initialStatus)
+  const [disconnecting, setDisconnecting] = useState(false)
+
+  // Device code flow state
+  const [deviceFlow, setDeviceFlow] = useState<{
+    userCode: string
+    verificationUrl: string
+    deviceAuthId: string
+  } | null>(null)
+  const [deviceFlowLoading, setDeviceFlowLoading] = useState(false)
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Manual API key state
+  const [showApiKeyInput, setShowApiKeyInput] = useState(false)
+  const [apiKey, setApiKey] = useState('')
+  const [apiKeyLoading, setApiKeyLoading] = useState(false)
+
+  // Cleanup polling on unmount
+  useEffect(() => {
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current)
+    }
+  }, [])
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current)
+      pollRef.current = null
+    }
+  }, [])
+
+  async function startDeviceCodeFlow() {
+    setDeviceFlowLoading(true)
+    try {
+      const res = await fetch('/api/auth/openai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'device-code' }),
+      })
+      if (!res.ok) {
+        toast.error('Failed to start device code flow')
+        return
+      }
+      const data = await res.json()
+      setDeviceFlow({
+        userCode: data.userCode,
+        verificationUrl: data.verificationUrl,
+        deviceAuthId: data.deviceAuthId,
+      })
+
+      // Start polling
+      const deviceAuthId = data.deviceAuthId
+      const userCode = data.userCode
+      pollRef.current = setInterval(async () => {
+        try {
+          const pollRes = await fetch('/api/auth/openai/poll', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deviceAuthId, userCode }),
+          })
+          if (!pollRes.ok) return
+          const pollData = await pollRes.json()
+
+          if (pollData.status === 'connected') {
+            stopPolling()
+            setDeviceFlow(null)
+            setStatus({
+              connected: true,
+              email: pollData.email,
+              planType: pollData.planType,
+              authMethod: 'oauth-device',
+              connectedAt: new Date().toISOString(),
+            })
+            toast.success('ChatGPT connected!')
+            router.refresh()
+          } else if (pollData.status === 'expired' || pollData.status === 'exchange_failed') {
+            stopPolling()
+            setDeviceFlow(null)
+            toast.error(pollData.message || 'Device code expired. Please try again.')
+          }
+        } catch {
+          // Ignore poll errors, keep trying
+        }
+      }, 5000)
+    } catch {
+      toast.error('Failed to start device code flow')
+    } finally {
+      setDeviceFlowLoading(false)
+    }
+  }
+
+  function cancelDeviceCodeFlow() {
+    stopPolling()
+    setDeviceFlow(null)
+  }
+
+  async function saveApiKey() {
+    if (!apiKey.trim()) return
+    setApiKeyLoading(true)
+    try {
+      const res = await fetch('/api/auth/openai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'api-key', apiKey: apiKey.trim() }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        toast.error(data.error || 'Failed to save API key')
+        return
+      }
+      setStatus({
+        connected: true,
+        email: null,
+        planType: null,
+        authMethod: 'api-key',
+        connectedAt: new Date().toISOString(),
+      })
+      setShowApiKeyInput(false)
+      setApiKey('')
+      toast.success('OpenAI API key connected!')
+      router.refresh()
+    } catch {
+      toast.error('Failed to save API key')
+    } finally {
+      setApiKeyLoading(false)
+    }
+  }
+
+  async function disconnect() {
+    setDisconnecting(true)
+    try {
+      const res = await fetch('/api/auth/openai/disconnect', { method: 'POST' })
+      if (res.ok) {
+        setStatus({ connected: false })
+        toast.success('ChatGPT disconnected')
+        router.refresh()
+      } else {
+        toast.error('Failed to disconnect')
+      }
+    } catch {
+      toast.error('Failed to disconnect')
+    } finally {
+      setDisconnecting(false)
+    }
+  }
+
+  return (
+    <div className="space-y-6 mt-4">
+      <div>
+        <h2 className="text-lg font-semibold">AI Configuration</h2>
+        <p className="text-sm text-muted-foreground">
+          Connect your ChatGPT account or enter an API key to power AI classification and drafts.
+        </p>
+      </div>
+
+      {/* Connected State */}
+      {status.connected && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <CardTitle>ChatGPT</CardTitle>
+                <Badge className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
+                  <CheckCircle2 className="size-3 mr-1" /> Connected
+                </Badge>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={disconnect}
+                disabled={disconnecting}
+                className="text-destructive hover:text-destructive"
+              >
+                {disconnecting ? <Loader2 className="size-3.5 animate-spin" /> : <LogOut className="size-3.5" />}
+                Disconnect
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {status.email && (
+                <div>
+                  <span className="text-xs font-medium text-muted-foreground block mb-1">Email</span>
+                  <span className="text-sm">{status.email}</span>
+                </div>
+              )}
+              {status.planType && (
+                <div>
+                  <span className="text-xs font-medium text-muted-foreground block mb-1">Plan</span>
+                  <span className="text-sm capitalize">{status.planType}</span>
+                </div>
+              )}
+              <div>
+                <span className="text-xs font-medium text-muted-foreground block mb-1">Auth Method</span>
+                <span className="text-sm">
+                  {status.authMethod === 'oauth-device' ? 'ChatGPT OAuth' : 'API Key'}
+                </span>
+              </div>
+              {status.connectedAt && (
+                <div>
+                  <span className="text-xs font-medium text-muted-foreground block mb-1">Connected</span>
+                  <span className="text-sm">{new Date(status.connectedAt).toLocaleDateString()}</span>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Disconnected State */}
+      {!status.connected && !deviceFlow && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Connect ChatGPT</CardTitle>
+            <CardDescription>
+              When connected, AI classification and drafts use your ChatGPT account.
+              When disconnected, the platform uses the built-in AI key.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                onClick={startDeviceCodeFlow}
+                disabled={deviceFlowLoading}
+                className="flex-1"
+              >
+                {deviceFlowLoading ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <ExternalLink className="size-4" />
+                )}
+                Sign in with ChatGPT
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowApiKeyInput(true)}
+                disabled={showApiKeyInput}
+                className="flex-1"
+              >
+                <Key className="size-4" />
+                Enter API Key Manually
+              </Button>
+            </div>
+
+            {showApiKeyInput && (
+              <div className="space-y-3 pt-2 border-t border-border">
+                <div>
+                  <label className="block text-xs font-medium mb-1.5">OpenAI API Key</label>
+                  <Input
+                    type="password"
+                    value={apiKey}
+                    onChange={e => setApiKey(e.target.value)}
+                    placeholder="sk-..."
+                    autoFocus
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Your key is encrypted at rest and never exposed to the client.
+                  </p>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => { setShowApiKeyInput(false); setApiKey('') }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={saveApiKey}
+                    disabled={apiKeyLoading || !apiKey.trim()}
+                  >
+                    {apiKeyLoading ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
+                    Validate & Save
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Device Code Flow Overlay */}
+      {deviceFlow && (
+        <Card className="border-primary/30">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle>Authorize ChatGPT</CardTitle>
+              <Button variant="ghost" size="icon-xs" onClick={cancelDeviceCodeFlow}>
+                <X className="size-4" />
+              </Button>
+            </div>
+            <CardDescription>
+              Enter this code on ChatGPT to connect your account.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-center gap-3">
+              <code className="text-3xl font-mono font-bold tracking-widest bg-muted px-6 py-3 rounded-lg select-all">
+                {deviceFlow.userCode}
+              </code>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={() => {
+                  navigator.clipboard.writeText(deviceFlow.userCode)
+                  toast.success('Code copied!')
+                }}
+              >
+                <Copy className="size-4" />
+              </Button>
+            </div>
+
+            <div className="flex justify-center">
+              <Button asChild>
+                <a
+                  href={deviceFlow.verificationUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink className="size-4" />
+                  Open ChatGPT
+                </a>
+              </Button>
+            </div>
+
+            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              Waiting for authorization...
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   )
 }
 

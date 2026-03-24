@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { createAuthClient, getServiceClient } from '@/lib/db/client'
 import { getCategories } from '@/lib/db/queries'
-import { openai } from '@/lib/ai/client'
+import { getOpenAIClient } from '@/lib/ai/client'
 import { validateOrigin } from '@/lib/utils/csrf'
 import { jsonOk, json400, json401, json403, json500 } from '@/lib/utils/api-helpers'
 
@@ -42,11 +42,13 @@ export async function POST(req: NextRequest) {
     const categories = await getCategories(user.id)
     const categoryNames = categories.map(c => `"${c.name}": ${c.description}`).join('\n')
 
+    const client = await getOpenAIClient(user.id)
+
     if (parsed.data.action === 'recategorize') {
       // Ask AI to recategorize each task
       const taskList = tasks.map(t => `ID:${t.id} | Text: "${t.original_text?.substring(0, 100)}"`).join('\n')
 
-      const response = await openai.chat.completions.create({
+      const response = await client.chat.completions.create({
         model: process.env.AI_MODEL || 'gpt-4o-mini',
         messages: [
           {
@@ -81,7 +83,7 @@ export async function POST(req: NextRequest) {
       // Ask AI which tasks are noise (system messages, irrelevant, spam)
       const taskList = tasks.map(t => `ID:${t.id} | Text: "${t.original_text?.substring(0, 150)}"`).join('\n')
 
-      const response = await openai.chat.completions.create({
+      const response = await client.chat.completions.create({
         model: process.env.AI_MODEL || 'gpt-4o-mini',
         messages: [
           {

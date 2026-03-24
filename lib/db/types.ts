@@ -218,6 +218,38 @@ export interface Database {
         }
         Update: Partial<Database['public']['Tables']['slack_user_cache']['Insert']>
       }
+      ai_settings: {
+        Row: {
+          id: string
+          owner_id: string
+          openai_api_key_enc: string | null
+          openai_api_key_iv: string | null
+          openai_refresh_token_enc: string | null
+          openai_refresh_token_iv: string | null
+          openai_email: string | null
+          openai_plan_type: string | null
+          openai_auth_method: 'oauth-device' | 'api-key' | null
+          openai_connected_at: string | null
+          openai_token_expires: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          owner_id: string
+          openai_api_key_enc?: string | null
+          openai_api_key_iv?: string | null
+          openai_refresh_token_enc?: string | null
+          openai_refresh_token_iv?: string | null
+          openai_email?: string | null
+          openai_plan_type?: string | null
+          openai_auth_method?: 'oauth-device' | 'api-key' | null
+          openai_connected_at?: string | null
+          openai_token_expires?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['ai_settings']['Insert']>
+      }
     }
   }
 }

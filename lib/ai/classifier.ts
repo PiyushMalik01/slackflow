@@ -1,4 +1,4 @@
-import { openai } from '@/lib/ai/client'
+import { getOpenAIClient } from '@/lib/ai/client'
 import { classifyAndDraftSchema, type ClassifyAndDraftResult } from '@/lib/ai/schemas'
 import { logger } from '@/lib/utils/logger'
 
@@ -15,6 +15,7 @@ export async function classifyAndDraft(
   channel: string,
   categories: Category[],
   threadContext?: string | null,
+  ownerId?: string,
 ): Promise<ClassifyAndDraftResult & { promptVersion: string }> {
   const categoryList = categories
     .map((c) => `- "${c.name}" (${c.emoji}): ${c.description}`)
@@ -51,7 +52,8 @@ Respond in JSON format:
     ? `Thread context:\n${threadContext}\n\nNew message from ${senderName} in #${channel}:\n${message}`
     : `Message from ${senderName} in #${channel}:\n${message}`
 
-  const response = await openai.chat.completions.create({
+  const client = await getOpenAIClient(ownerId)
+  const response = await client.chat.completions.create({
     model: process.env.AI_MODEL || 'gpt-4o-mini',
     messages: [
       { role: 'system', content: systemPrompt },

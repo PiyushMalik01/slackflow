@@ -46,6 +46,7 @@ export async function runAiPipeline(input: PipelineInput): Promise<PipelineResul
       input.channel,
       categories,
       input.threadContext,
+      input.ownerId,
     )
 
     // Resolve category ID
