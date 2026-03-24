@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   CheckSquare,
   Building2,
+  Users,
   Clock,
   Settings,
   LogOut,
@@ -27,6 +28,7 @@ const navItems = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
   { href: '/dashboard/tasks', label: 'Tasks', icon: CheckSquare },
   { href: '/dashboard/workspaces', label: 'Workspaces', icon: Building2 },
+  { href: '/dashboard/teams', label: 'Teams', icon: Users },
   { href: '/dashboard/activity', label: 'Activity', icon: Clock },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
 ]

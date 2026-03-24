@@ -1,28 +1,25 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Plus, Save, Trash2, Edit2, X, Loader2, Check,
-  AlertTriangle, Tag, Users, Route
+  Plus, Save, Trash2, Edit2, X, Loader2,
+  Tag, Sliders, CheckCircle2, XCircle, RefreshCw,
 } from 'lucide-react'
+import { toast } from 'sonner'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import {
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
-} from '@/components/ui/select'
-import { InviteLinkButton } from '@/components/invite-link-button'
 
-// ── Color palette for categories ─────────────────────────────────────────────
+// -- Color palette for categories ---------------------------------------------
 const COLOR_PALETTE = [
   '#EF4444', '#F97316', '#EAB308', '#22C55E',
   '#3B82F6', '#8B5CF6', '#EC4899', '#6B7280',
 ]
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// -- Types --------------------------------------------------------------------
 interface Category {
   id: string
   name: string
@@ -33,43 +30,24 @@ interface Category {
   owner_id: string
 }
 
-interface Role {
+interface WorkspacePrefs {
   id: string
   name: string
-  type: string
-  status?: string
-  telegram_chat_id?: string
-  owner_id: string
-  invite_tokens?: { token: string; expires_at: string; used_at: string | null }[]
-}
-
-interface Workspace {
-  id: string
-  name: string
-}
-
-interface WorkspaceRole {
-  workspace_id: string
-  category_id: string
-  role_id: string
+  accent_color?: string | null
+  telegram_group_chat_id?: string | null
+  daily_digest_time?: string | null
 }
 
 interface SettingsClientProps {
   initialCategories: Category[]
-  initialRoles: Role[]
-  workspaces: Workspace[]
-  workspaceRoles: WorkspaceRole[]
+  workspaces: WorkspacePrefs[]
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Main Settings Client
-// ═══════════════════════════════════════════════════════════════════════════════
+// -- Main Client --------------------------------------------------------------
 
 export function SettingsClient({
   initialCategories,
-  initialRoles,
   workspaces,
-  workspaceRoles,
 }: SettingsClientProps) {
   return (
     <Tabs defaultValue="categories">
@@ -78,13 +56,9 @@ export function SettingsClient({
           <Tag className="size-3.5" />
           Categories
         </TabsTrigger>
-        <TabsTrigger value="roles">
-          <Users className="size-3.5" />
-          Roles
-        </TabsTrigger>
-        <TabsTrigger value="routing">
-          <Route className="size-3.5" />
-          Routing
+        <TabsTrigger value="preferences">
+          <Sliders className="size-3.5" />
+          Preferences
         </TabsTrigger>
       </TabsList>
 
@@ -92,25 +66,14 @@ export function SettingsClient({
         <CategoriesTab initialCategories={initialCategories} />
       </TabsContent>
 
-      <TabsContent value="roles">
-        <RolesTab initialRoles={initialRoles} />
-      </TabsContent>
-
-      <TabsContent value="routing">
-        <RoutingTab
-          categories={initialCategories}
-          roles={initialRoles}
-          workspaces={workspaces}
-          workspaceRoles={workspaceRoles}
-        />
+      <TabsContent value="preferences">
+        <PreferencesTab workspaces={workspaces} />
       </TabsContent>
     </Tabs>
   )
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Categories Tab
-// ═══════════════════════════════════════════════════════════════════════════════
+// -- Categories Tab -----------------------------------------------------------
 
 function CategoriesTab({ initialCategories }: { initialCategories: Category[] }) {
   const router = useRouter()
@@ -145,7 +108,10 @@ function CategoriesTab({ initialCategories }: { initialCategories: Category[] })
               const cat = await res.json()
               setCategories(prev => [...prev, cat])
               setShowAddForm(false)
+              toast.success('Category created')
               router.refresh()
+            } else {
+              toast.error('Failed to create category')
             }
           }}
           onCancel={() => setShowAddForm(false)}
@@ -169,7 +135,10 @@ function CategoriesTab({ initialCategories }: { initialCategories: Category[] })
                     prev.map(c => c.id === cat.id ? { ...c, ...data } : c)
                   )
                   setEditingId(null)
+                  toast.success('Category updated')
                   router.refresh()
+                } else {
+                  toast.error('Failed to update category')
                 }
               }}
               onCancel={() => setEditingId(null)}
@@ -184,7 +153,10 @@ function CategoriesTab({ initialCategories }: { initialCategories: Category[] })
                 const res = await fetch(`/api/categories?id=${cat.id}`, { method: 'DELETE' })
                 if (res.ok) {
                   setCategories(prev => prev.filter(c => c.id !== cat.id))
+                  toast.success('Category deleted')
                   router.refresh()
+                } else {
+                  toast.error('Failed to delete category')
                 }
               }}
             />
@@ -333,476 +305,242 @@ function CategoryForm({
   )
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Roles Tab
-// ═══════════════════════════════════════════════════════════════════════════════
+// -- Preferences Tab ----------------------------------------------------------
 
-function RolesTab({ initialRoles }: { initialRoles: Role[] }) {
-  const router = useRouter()
-  const [roles, setRoles] = useState(initialRoles)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [showAddForm, setShowAddForm] = useState(false)
+const ACCENT_COLORS = [
+  { label: 'Blue', value: '#3B82F6' },
+  { label: 'Purple', value: '#8B5CF6' },
+  { label: 'Green', value: '#22C55E' },
+  { label: 'Orange', value: '#F97316' },
+  { label: 'Pink', value: '#EC4899' },
+  { label: 'Red', value: '#EF4444' },
+  { label: 'Teal', value: '#14B8A6' },
+  { label: 'Slate', value: '#64748B' },
+]
 
+function PreferencesTab({ workspaces }: { workspaces: WorkspacePrefs[] }) {
   return (
-    <div className="space-y-4 mt-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">Roles</h2>
+    <div className="space-y-6 mt-4">
+      <div>
+        <h2 className="text-lg font-semibold">Preferences</h2>
+        <p className="text-sm text-muted-foreground">
+          Configure workspace settings and check platform health.
+        </p>
+      </div>
+
+      {workspaces.length > 0 ? (
+        workspaces.map(ws => (
+          <WorkspacePrefsCard key={ws.id} workspace={ws} />
+        ))
+      ) : (
+        <div className="py-12 text-center rounded-lg border border-dashed border-border">
+          <Sliders className="size-8 text-muted-foreground mx-auto mb-3" />
           <p className="text-sm text-muted-foreground">
-            Team members who receive task notifications via Telegram.
+            Connect a workspace to configure preferences.
           </p>
         </div>
-        <Button size="sm" onClick={() => setShowAddForm(true)} disabled={showAddForm}>
-          <Plus className="size-3.5" />
-          Add Role
-        </Button>
-      </div>
-
-      {showAddForm && (
-        <RoleForm
-          onSave={async (data) => {
-            const res = await fetch('/api/roles', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(data),
-            })
-            if (res.ok) {
-              setShowAddForm(false)
-              router.refresh()
-              // Reload roles from server
-              const rolesRes = await fetch('/api/roles')
-              if (rolesRes.ok) {
-                // Just refresh, server data will update
-              }
-            }
-          }}
-          onCancel={() => setShowAddForm(false)}
-        />
       )}
 
-      <div className="space-y-2">
-        {roles.map((role) =>
-          editingId === role.id ? (
-            <RoleEditForm
-              key={role.id}
-              role={role}
-              onSave={async (data) => {
-                const res = await fetch('/api/roles', {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ id: role.id, ...data }),
-                })
-                if (res.ok) {
-                  setRoles(prev =>
-                    prev.map(r => r.id === role.id ? { ...r, ...data } : r)
-                  )
-                  setEditingId(null)
-                  router.refresh()
-                }
-              }}
-              onCancel={() => setEditingId(null)}
-            />
-          ) : (
-            <RoleItem
-              key={role.id}
-              role={role}
-              onEdit={() => setEditingId(role.id)}
-              onDelete={async () => {
-                if (!confirm('Delete this role? Route mappings will be removed.')) return
-                const res = await fetch(`/api/roles?id=${role.id}`, { method: 'DELETE' })
-                if (res.ok) {
-                  setRoles(prev => prev.filter(r => r.id !== role.id))
-                  router.refresh()
-                }
-              }}
-            />
-          )
-        )}
-      </div>
-
-      {roles.length === 0 && !showAddForm && (
-        <div className="py-12 text-center text-muted-foreground text-sm">
-          No roles configured. Add a role and share the invite link via Telegram.
-        </div>
-      )}
+      <HealthCheckCard />
     </div>
   )
 }
 
-function getRoleStatusInfo(role: Role) {
-  if (role.status === 'linked') return { color: 'bg-green-500', label: 'Linked' }
-  if (role.status === 'pending') return { color: 'bg-yellow-500', label: 'Pending' }
-  return { color: 'bg-muted-foreground/40', label: 'Unlinked' }
-}
-
-function RoleItem({
-  role,
-  onEdit,
-  onDelete,
-}: {
-  role: Role
-  onEdit: () => void
-  onDelete: () => void
-}) {
-  const status = getRoleStatusInfo(role)
-  const activeToken = role.invite_tokens?.find(
-    t => !t.used_at && new Date(t.expires_at) > new Date()
-  )
-
-  return (
-    <div className="p-4 rounded-lg border border-border bg-card group hover:border-border/80 transition-colors">
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <span className={`size-2.5 rounded-full flex-shrink-0 ${status.color}`} />
-          <span className="text-sm font-medium">{role.name}</span>
-          <Badge variant="secondary" className="text-[10px]">{role.type}</Badge>
-          <span className="text-xs text-muted-foreground">{status.label}</span>
-        </div>
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-          <Button variant="ghost" size="icon-xs" onClick={onEdit}>
-            <Edit2 className="size-3.5" />
-          </Button>
-          <Button variant="ghost" size="icon-xs" onClick={onDelete} className="hover:text-destructive">
-            <Trash2 className="size-3.5" />
-          </Button>
-        </div>
-      </div>
-      <div className="mt-3 pl-[18px]">
-        <InviteLinkButton
-          roleId={role.id}
-          existingLink={activeToken ? `https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME}?start=invite_${activeToken.token}` : null}
-          expiresAt={activeToken?.expires_at}
-        />
-      </div>
-    </div>
-  )
-}
-
-const ROLE_TYPES = ['Developer', 'Designer', 'PM', 'Support', 'Custom']
-
-function RoleForm({
-  onSave,
-  onCancel,
-}: {
-  onSave: (data: { name: string; type: string }) => Promise<void>
-  onCancel: () => void
-}) {
-  const [name, setName] = useState('')
-  const [type, setType] = useState('')
-  const [saving, setSaving] = useState(false)
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!name.trim() || !type.trim()) return
-    setSaving(true)
-    try {
-      await onSave({ name: name.trim(), type: type.trim() })
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <Card>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium mb-1.5">Role Name</label>
-            <Input
-              value={name}
-              onChange={e => setName(e.target.value)}
-              placeholder="e.g. Alice, Front-end Team"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium mb-1.5">Type</label>
-            <Input
-              value={type}
-              onChange={e => setType(e.target.value)}
-              placeholder="e.g. Developer, PM"
-              required
-            />
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {ROLE_TYPES.map(t => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setType(t)}
-                  className={`text-xs px-2.5 py-1 rounded-md border transition-colors ${
-                    type === t
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border bg-muted/50 text-muted-foreground hover:bg-muted hover:text-foreground'
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex gap-2 justify-end pt-1">
-            <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-              <X className="size-3.5" /> Cancel
-            </Button>
-            <Button type="submit" size="sm" disabled={saving || !name.trim() || !type.trim()}>
-              {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
-              Create Role
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
-  )
-}
-
-function RoleEditForm({
-  role,
-  onSave,
-  onCancel,
-}: {
-  role: Role
-  onSave: (data: { name: string; type: string; telegram_chat_id: string }) => Promise<void>
-  onCancel: () => void
-}) {
-  const [name, setName] = useState(role.name)
-  const [type, setType] = useState(role.type)
-  const [chatId, setChatId] = useState(role.telegram_chat_id || '')
-  const [saving, setSaving] = useState(false)
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-    try {
-      await onSave({ name: name.trim(), type: type.trim(), telegram_chat_id: chatId.trim() })
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <Card>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium mb-1.5">Name</label>
-              <Input value={name} onChange={e => setName(e.target.value)} required />
-            </div>
-            <div>
-              <label className="block text-xs font-medium mb-1.5">Type</label>
-              <Input value={type} onChange={e => setType(e.target.value)} required />
-              <div className="flex flex-wrap gap-1 mt-1.5">
-                {ROLE_TYPES.map(t => (
-                  <button
-                    key={t}
-                    type="button"
-                    onClick={() => setType(t)}
-                    className={`text-[10px] px-2 py-0.5 rounded border transition-colors ${
-                      type === t
-                        ? 'border-primary bg-primary/10 text-primary'
-                        : 'border-transparent bg-muted text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {t}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs font-medium mb-1.5">Telegram Chat ID</label>
-            <Input
-              value={chatId}
-              onChange={e => setChatId(e.target.value)}
-              placeholder="Optional — auto-filled when user links via invite"
-            />
-          </div>
-          <div className="flex gap-2 justify-end pt-1">
-            <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
-              <X className="size-3.5" /> Cancel
-            </Button>
-            <Button type="submit" size="sm" disabled={saving}>
-              {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
-              Save
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
-  )
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Routing Tab
-// ═══════════════════════════════════════════════════════════════════════════════
-
-function RoutingTab({
-  categories,
-  roles,
-  workspaces,
-  workspaceRoles,
-}: {
-  categories: Category[]
-  roles: Role[]
-  workspaces: Workspace[]
-  workspaceRoles: WorkspaceRole[]
-}) {
-  if (workspaces.length === 0) {
-    return (
-      <div className="mt-4 py-16 text-center rounded-lg border border-dashed border-border">
-        <Route className="size-8 text-muted-foreground mx-auto mb-3" />
-        <p className="text-sm text-muted-foreground">
-          Connect a workspace first to configure task routing.
-        </p>
-      </div>
-    )
-  }
-
-  if (roles.length === 0) {
-    return (
-      <div className="mt-4 py-16 text-center rounded-lg border border-dashed border-border">
-        <Users className="size-8 text-muted-foreground mx-auto mb-3" />
-        <p className="text-sm text-muted-foreground">
-          Create at least one role before configuring routing.
-        </p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-4 mt-4">
-      <div>
-        <h2 className="text-lg font-semibold">Task Routing</h2>
-        <p className="text-sm text-muted-foreground">
-          Assign roles to categories for each workspace. Messages matching a category will be routed to the assigned role.
-        </p>
-      </div>
-
-      {workspaces.map(ws => (
-        <WorkspaceRoutingCard
-          key={ws.id}
-          workspace={ws}
-          categories={categories}
-          roles={roles}
-          mappings={workspaceRoles.filter(wr => wr.workspace_id === ws.id)}
-        />
-      ))}
-    </div>
-  )
-}
-
-function WorkspaceRoutingCard({
-  workspace,
-  categories,
-  roles,
-  mappings,
-}: {
-  workspace: Workspace
-  categories: Category[]
-  roles: Role[]
-  mappings: WorkspaceRole[]
-}) {
+function WorkspacePrefsCard({ workspace }: { workspace: WorkspacePrefs }) {
   const router = useRouter()
-  const [localMappings, setLocalMappings] = useState<Record<string, string>>(() => {
-    const m: Record<string, string> = {}
-    for (const wr of mappings) {
-      m[wr.category_id] = wr.role_id
-    }
-    return m
-  })
-  const [saving, setSaving] = useState<Record<string, 'idle' | 'saving' | 'saved' | 'error'>>({})
+  const [accentColor, setAccentColor] = useState(workspace.accent_color || '#3B82F6')
+  const [telegramGroupId, setTelegramGroupId] = useState(workspace.telegram_group_chat_id || '')
+  const [digestTime, setDigestTime] = useState(workspace.daily_digest_time || '')
+  const [saving, setSaving] = useState(false)
 
-  async function handleChange(categoryId: string, roleId: string) {
-    setLocalMappings(prev => ({ ...prev, [categoryId]: roleId }))
-    setSaving(prev => ({ ...prev, [categoryId]: 'saving' }))
-
+  async function handleSave() {
+    setSaving(true)
     try {
-      const res = await fetch('/api/workspace-roles', {
-        method: 'POST',
+      const res = await fetch(`/api/workspaces/${workspace.id}/preferences`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          workspace_id: workspace.id,
-          category_id: categoryId,
-          role_id: roleId || null,
+          accent_color: accentColor,
+          telegram_group_chat_id: telegramGroupId || null,
+          daily_digest_time: digestTime || null,
         }),
       })
       if (res.ok) {
-        setSaving(prev => ({ ...prev, [categoryId]: 'saved' }))
-        setTimeout(() => setSaving(prev => ({ ...prev, [categoryId]: 'idle' })), 2000)
+        toast.success('Preferences saved')
         router.refresh()
       } else {
-        setSaving(prev => ({ ...prev, [categoryId]: 'error' }))
+        toast.error('Failed to save preferences')
       }
     } catch {
-      setSaving(prev => ({ ...prev, [categoryId]: 'error' }))
+      toast.error('Failed to save preferences')
+    } finally {
+      setSaving(false)
     }
   }
-
-  const unassignedCount = categories.filter(c => !localMappings[c.id]).length
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>{workspace.name}</CardTitle>
-        {unassignedCount > 0 && (
-          <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
-            <AlertTriangle className="size-3.5" />
-            {unassignedCount} unassigned {unassignedCount === 1 ? 'category' : 'categories'}
+        <CardDescription>Workspace-level preferences</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {/* Accent color */}
+        <div>
+          <label className="block text-xs font-medium mb-2">Accent Color</label>
+          <div className="flex gap-2">
+            {ACCENT_COLORS.map(c => (
+              <button
+                key={c.value}
+                type="button"
+                onClick={() => setAccentColor(c.value)}
+                className="size-7 rounded-full border-2 transition-all hover:scale-110"
+                title={c.label}
+                style={{
+                  backgroundColor: c.value,
+                  borderColor: accentColor === c.value ? 'var(--foreground)' : 'transparent',
+                }}
+              />
+            ))}
           </div>
-        )}
+        </div>
+
+        {/* Telegram group */}
+        <div>
+          <label className="block text-xs font-medium mb-1.5">Telegram Group Chat ID</label>
+          <Input
+            value={telegramGroupId}
+            onChange={e => setTelegramGroupId(e.target.value)}
+            placeholder="e.g. -1001234567890"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Link a Telegram group for team-wide notifications.
+          </p>
+        </div>
+
+        {/* Daily digest */}
+        <div>
+          <label className="block text-xs font-medium mb-1.5">Daily Digest Time</label>
+          <div className="flex items-center gap-3">
+            <Input
+              type="time"
+              value={digestTime}
+              onChange={e => setDigestTime(e.target.value)}
+              className="w-40"
+            />
+            {digestTime && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setDigestTime('')}
+                className="text-xs text-muted-foreground"
+              >
+                Disable
+              </Button>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            {digestTime ? `Digest will be sent daily at ${digestTime}.` : 'Disabled — no daily digest will be sent.'}
+          </p>
+        </div>
+
+        <div className="flex justify-end pt-1">
+          <Button size="sm" onClick={handleSave} disabled={saving}>
+            {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
+            Save Preferences
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+interface HealthStatus {
+  status: 'healthy' | 'degraded'
+  timestamp: string
+  checks: Record<string, 'ok' | 'error'>
+}
+
+function HealthCheckCard() {
+  const [health, setHealth] = useState<HealthStatus | null>(null)
+  const [loading, setLoading] = useState(false)
+
+  async function fetchHealth() {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/health')
+      if (res.ok) {
+        setHealth(await res.json())
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchHealth()
+  }, [])
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Platform Health</CardTitle>
+            <CardDescription>Status of connected services</CardDescription>
+          </div>
+          <Button variant="outline" size="sm" onClick={fetchHealth} disabled={loading}>
+            <RefreshCw className={`size-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-3">
-          {categories.map(cat => {
-            const status = saving[cat.id] || 'idle'
-            return (
-              <div key={cat.id} className="flex items-center gap-3">
-                <div className="flex items-center gap-2 w-36 flex-shrink-0">
-                  <span
-                    className="size-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: cat.color }}
-                  />
-                  <span className="text-sm truncate">
-                    {cat.emoji} {cat.name}
-                  </span>
-                </div>
-                <div className="flex-1">
-                  <Select
-                    value={localMappings[cat.id] || '__none__'}
-                    onValueChange={val => handleChange(cat.id, val === '__none__' ? '' : val)}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a role..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="__none__">-- No role --</SelectItem>
-                      {roles.map(role => (
-                        <SelectItem key={role.id} value={role.id}>
-                          {role.name} ({role.type})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="w-14 flex-shrink-0">
-                  {status === 'saving' && (
-                    <span className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Loader2 className="size-3 animate-spin" />
-                    </span>
-                  )}
-                  {status === 'saved' && (
-                    <span className="text-xs text-green-500 flex items-center gap-1">
-                      <Check className="size-3" /> Saved
-                    </span>
-                  )}
-                  {status === 'error' && (
-                    <span className="text-xs text-destructive">Error</span>
+        {!health && !loading && (
+          <p className="text-sm text-muted-foreground">Unable to fetch health status.</p>
+        )}
+        {health && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 mb-3">
+              {health.status === 'healthy' ? (
+                <Badge className="bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20">
+                  <CheckCircle2 className="size-3 mr-1" /> Healthy
+                </Badge>
+              ) : (
+                <Badge variant="destructive" className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20">
+                  <XCircle className="size-3 mr-1" /> Degraded
+                </Badge>
+              )}
+              <span className="text-xs text-muted-foreground">
+                Last checked: {new Date(health.timestamp).toLocaleTimeString()}
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {Object.entries(health.checks).map(([name, status]) => (
+                <div
+                  key={name}
+                  className="flex items-center justify-between rounded-md border border-border px-3 py-2"
+                >
+                  <span className="text-sm capitalize">{name}</span>
+                  {status === 'ok' ? (
+                    <CheckCircle2 className="size-4 text-green-500" />
+                  ) : (
+                    <XCircle className="size-4 text-destructive" />
                   )}
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {loading && !health && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+            Checking platform health...
+          </div>
+        )}
       </CardContent>
     </Card>
   )
