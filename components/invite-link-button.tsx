@@ -75,11 +75,16 @@ export function InviteLinkButton({ roleId, existingLink, expiresAt }: InviteLink
         setShowDirectSend(false)
         setTelegramUsername('')
       } else {
-        // Couldn't send directly — show the link to copy instead
-        toast.error(
-          `Couldn't message @${telegramUsername.replace('@', '')} directly (they need to start the bot first). Link generated — copy and share it.`,
-          { duration: 6000 }
+        // Couldn't send directly — auto-copy link and show helpful message
+        if (data.deep_link) {
+          await navigator.clipboard.writeText(data.deep_link)
+        }
+        toast.info(
+          `@${telegramUsername.replace('@', '')} hasn't started the bot yet. Invite link copied to clipboard — share it with them on any channel.`,
+          { duration: 5000 }
         )
+        setShowDirectSend(false)
+        setTelegramUsername('')
       }
     } catch {
       toast.error('Failed to send invite')
