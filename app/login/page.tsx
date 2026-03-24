@@ -18,9 +18,11 @@ export default function LoginPage() {
   const nextPath = searchParams.get('next') ?? '/dashboard'
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (user) router.replace(nextPath)
-    })
+    async function checkUser() {
+      const { data } = await supabase.auth.getUser()
+      if (data?.user) router.replace(nextPath)
+    }
+    checkUser()
   }, [])
 
   async function handleSubmit(e: React.FormEvent) {
