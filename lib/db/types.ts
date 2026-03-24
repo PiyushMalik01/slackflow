@@ -46,11 +46,13 @@ export interface Database {
           type: RoleType
           name: string
           telegram_chat_id: string | null
+          status: 'pending_link' | 'linked' | 'unlinked'
           created_at: string
         }
         Insert: Omit<Database['public']['Tables']['roles']['Row'], 'id' | 'created_at'> & {
           id?: string
           created_at?: string
+          status?: 'pending_link' | 'linked' | 'unlinked'
         }
         Update: Partial<Database['public']['Tables']['roles']['Insert']>
       }
@@ -120,6 +122,63 @@ export interface Database {
         Insert: Omit<Database['public']['Tables']['rate_limits']['Row'], 'id'> & { id?: string }
         Update: Partial<Database['public']['Tables']['rate_limits']['Insert']>
       }
+      categories: {
+        Row: {
+          id: string
+          owner_id: string
+          name: string
+          description: string
+          color: string
+          emoji: string
+          is_default: boolean
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['categories']['Row'], 'id' | 'created_at'> & {
+          id?: string
+          created_at?: string
+          description?: string
+          color?: string
+          emoji?: string
+          is_default?: boolean
+        }
+        Update: Partial<Database['public']['Tables']['categories']['Insert']>
+      }
+      invite_tokens: {
+        Row: {
+          id: string
+          role_id: string
+          token: string
+          expires_at: string
+          used_at: string | null
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['invite_tokens']['Row'], 'id' | 'created_at'> & {
+          id?: string
+          created_at?: string
+          used_at?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['invite_tokens']['Insert']>
+      }
     }
   }
+}
+
+export interface Category {
+  id: string
+  owner_id: string
+  name: string
+  description: string
+  color: string
+  emoji: string
+  is_default: boolean
+  created_at: string
+}
+
+export interface InviteToken {
+  id: string
+  role_id: string
+  token: string
+  expires_at: string
+  used_at: string | null
+  created_at: string
 }
