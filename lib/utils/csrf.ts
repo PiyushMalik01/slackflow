@@ -1,16 +1,17 @@
 import { headers } from 'next/headers'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || ''
-
 export async function validateOrigin(): Promise<boolean> {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL
+  // Skip CSRF in development when APP_URL is not configured
+  if (!appUrl) return true
+
   const h = await headers()
   const origin = h.get('origin')
   const referer = h.get('referer')
 
   if (!origin && !referer) return false
 
-  const allowed = APP_URL ? new URL(APP_URL).origin : ''
-  if (!allowed) return true // skip in dev if APP_URL not set
+  const allowed = new URL(appUrl).origin
 
   if (origin && origin === allowed) return true
   if (referer) {

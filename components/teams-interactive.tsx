@@ -233,7 +233,7 @@ function MemberItem({
       <div className="mt-3 pl-[18px]">
         <InviteLinkButton
           roleId={role.id}
-          existingLink={activeToken ? `https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME}?start=invite_${activeToken.token}` : null}
+          existingLink={activeToken ? `https://t.me/${process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'SlackFlowBot'}?start=${activeToken.token}` : null}
           expiresAt={activeToken?.expires_at}
         />
       </div>

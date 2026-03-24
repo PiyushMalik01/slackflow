@@ -16,6 +16,7 @@ export function InviteLinkButton({ roleId, existingLink, expiresAt }: InviteLink
   const [copied, setCopied] = useState(false)
   const [loading, setLoading] = useState(false)
   const [expires, setExpires] = useState(expiresAt || '')
+  const [error, setError] = useState('')
 
   const isExpired = expires ? new Date(expires) < new Date() : false
 
@@ -27,11 +28,21 @@ export function InviteLinkButton({ roleId, existingLink, expiresAt }: InviteLink
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role_id: roleId }),
       })
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: 'Request failed' }))
+        setError(err.error || 'Failed to generate invite link')
+        return
+      }
       const data = await res.json()
       if (data.deep_link) {
         setLink(data.deep_link)
         setExpires(data.expires_at)
+        setError('')
+      } else {
+        setError('No invite link returned')
       }
+    } catch {
+      setError('Network error — could not generate link')
     } finally {
       setLoading(false)
     }
@@ -45,10 +56,13 @@ export function InviteLinkButton({ roleId, existingLink, expiresAt }: InviteLink
 
   if (!link || isExpired) {
     return (
-      <Button variant="outline" size="sm" onClick={generateLink} disabled={loading}>
-        <RefreshCw className={cn('mr-1.5 h-3.5 w-3.5', loading && 'animate-spin')} />
-        {isExpired ? 'Regenerate Link' : 'Generate Invite Link'}
-      </Button>
+      <div className="space-y-1">
+        <Button variant="outline" size="sm" onClick={generateLink} disabled={loading}>
+          <RefreshCw className={cn('mr-1.5 h-3.5 w-3.5', loading && 'animate-spin')} />
+          {isExpired ? 'Regenerate Link' : 'Generate Invite Link'}
+        </Button>
+        {error && <p className="text-xs text-destructive">{error}</p>}
+      </div>
     )
   }
 
