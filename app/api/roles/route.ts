@@ -8,13 +8,34 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
-    const body = await req.json()
+    const contentType = req.headers.get('content-type') ?? ''
+    let name: string | null = null
+    let type: string | null = null
+    let telegram_chat_id: string | null = null
+
+    if (contentType.includes('application/json')) {
+      const body = await req.json()
+      name = body.name ?? null
+      type = body.type ?? null
+      telegram_chat_id = body.telegram_chat_id ?? null
+    } else {
+      const formData = await req.formData()
+      name = String(formData.get('name') ?? '').trim() || null
+      type = String(formData.get('type') ?? '').trim() || null
+      telegram_chat_id = String(formData.get('telegram_chat_id') ?? '').trim() || null
+    }
+
     const role = await upsertRole({
       owner_id: user.id,
-      name: body.name,
-      type: body.type || 'BUILDER',
-      telegram_chat_id: body.telegram_chat_id || null,
+      name: name ?? '',
+      type: type || 'BUILDER',
+      telegram_chat_id: telegram_chat_id || null,
     })
+
+    if (!contentType.includes('application/json')) {
+      return NextResponse.redirect(new URL('/dashboard/settings', req.url))
+    }
+
     return NextResponse.json(role)
   } catch (error) {
     return NextResponse.json({ error: 'Failed to create role' }, { status: 500 })
