@@ -1444,7 +1444,7 @@ git commit -m "feat(api): add workspace channel discovery and toggle endpoint"
 
 - [ ] **Step 1: Add Zod validation and CSRF to roles route**
 
-Update `roles/route.ts`:
+Update `roles/route.ts` (NOTE: this file was recently updated to support both JSON and formData content types — preserve that dual-format handling):
 - Define Zod schemas for POST (create), PUT (update), DELETE body
 - Add `validateOrigin()` check on all mutations
 - Use api-helpers for consistent error responses
@@ -1845,7 +1845,9 @@ git commit -m "feat(ui): polish global styles, theme, typography, meta tags"
 **Files:**
 - Delete: `lib/slack/classifier.ts` (replaced by `lib/ai/classifier.ts`)
 - Delete: `app/dashboard/data.json` (sample data, no longer needed)
+- Delete: `test-results/` directory (committed test artifacts — should be gitignored)
 - Modify: `lib/db/queries.ts` (remove old deduplication function if superseded)
+- Modify: `.gitignore` (add `test-results/`)
 - Clean: Any unused imports across all modified files
 
 - [ ] **Step 1: Remove old classifier**
@@ -1856,15 +1858,19 @@ Delete `lib/slack/classifier.ts`. The AI-powered classifier in `lib/ai/classifie
 
 Delete `app/dashboard/data.json` — dashboard now uses real DB queries.
 
-- [ ] **Step 3: Clean up imports and unused code**
+- [ ] **Step 3: Gitignore test artifacts and remove committed ones**
+
+Add `test-results/` to `.gitignore`. Remove the committed `test-results/` directory from git tracking (`git rm -r --cached test-results/`).
+
+- [ ] **Step 4: Clean up imports and unused code**
 
 Run through all modified files and remove unused imports, dead functions, commented-out code.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add -A
-git commit -m "chore: remove dead code, old classifier, sample data"
+git commit -m "chore: remove dead code, old classifier, sample data, test artifacts"
 ```
 
 ---
@@ -1948,7 +1954,47 @@ git commit -m "docs: update .env.example with all required variables"
 
 ---
 
-### Task 37: Final Integration Verification
+### Task 37: Update Playwright Tests for New UI
+
+**Files:**
+- Modify: `tests/slackflow.spec.ts`
+
+**Context:** An existing Playwright test suite (934 lines) covers landing page, login, signup, dashboard navigation, role management, accessibility, and responsive design. The UI rebuild will break many of these tests since selectors and text content will change.
+
+- [ ] **Step 1: Update landing page test selectors**
+
+The landing page is completely rewritten (Task 25). Update tests to match new heading text, nav structure, and feature cards. Key changes:
+- Hero text: update to match new headline
+- Nav links: ensure "Sign in" and "Get started" still exist with correct hrefs
+- Feature grid: update feature card text selectors
+- "How it works" steps: update to match 4-step flow
+
+- [ ] **Step 2: Update dashboard test selectors**
+
+Dashboard pages are rebuilt. Update tests for:
+- Sidebar navigation items (names/icons may change)
+- Settings page (now tabbed: Categories, Roles, Routing)
+- Tasks page (new filter structure, expandable cards)
+- Overview page (real metric cards instead of sample data)
+
+- [ ] **Step 3: Add tests for new features**
+
+Add tests for:
+- Category management (create, edit, delete)
+- Invite link generation and display
+- Workspace switcher interaction
+- Channel toggle cards
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add tests/slackflow.spec.ts
+git commit -m "test: update Playwright tests for rebuilt UI"
+```
+
+---
+
+### Task 38: Final Integration Verification
 
 - [ ] **Step 1: Verify build succeeds**
 
@@ -1963,7 +2009,12 @@ Start dev server, hit each endpoint:
 - POST `/api/invite-tokens` → 401
 - GET `/api/workspaces/[id]/channels` → 401
 
-- [ ] **Step 3: Verify all pages render**
+- [ ] **Step 3: Run Playwright tests**
+
+Run: `npx playwright test`
+Expected: All tests pass (landing page, login, signup, dashboard navigation, responsive)
+
+- [ ] **Step 4: Verify all pages render**
 
 Navigate to each page in browser:
 - `/` → landing page
@@ -1975,7 +2026,7 @@ Navigate to each page in browser:
 - `/dashboard/settings` → settings page
 - `/dashboard/activity` → activity page
 
-- [ ] **Step 4: Final commit and tag**
+- [ ] **Step 5: Final commit and tag**
 
 ```bash
 git add -A
