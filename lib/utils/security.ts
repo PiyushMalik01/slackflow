@@ -48,3 +48,10 @@ export function generateId(prefix?: string): string {
   const id = randomBytes(8).toString('hex')
   return prefix ? `${prefix}_${id}` : id
 }
+
+const TELEGRAM_WEBHOOK_SECRET = process.env.TELEGRAM_WEBHOOK_SECRET || ''
+
+export function verifyTelegramWebhook(secretHeader: string | null): boolean {
+  if (!TELEGRAM_WEBHOOK_SECRET) return true // skip in dev if not set
+  return secretHeader === TELEGRAM_WEBHOOK_SECRET
+}
