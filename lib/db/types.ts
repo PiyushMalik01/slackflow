@@ -61,7 +61,7 @@ export interface Database {
           id: string
           workspace_id: string
           role_id: string
-          category: TaskCategory
+          category_id: string
         }
         Insert: Omit<Database['public']['Tables']['workspace_roles']['Row'], 'id'> & { id?: string }
         Update: Partial<Database['public']['Tables']['workspace_roles']['Insert']>
@@ -84,8 +84,10 @@ export interface Database {
           telegram_message_id: number | null
           ai_model: string | null
           ai_tokens_used: number | null
+          ai_prompt_version: string | null
           draft_generated_at: string | null
           sent_at: string | null
+          category_id: string | null
           created_at: string
           updated_at: string
         }
@@ -93,6 +95,8 @@ export interface Database {
           id?: string
           created_at?: string
           updated_at?: string
+          category_id?: string | null
+          ai_prompt_version?: string | null
         }
         Update: Partial<Database['public']['Tables']['tasks']['Insert']>
       }

@@ -94,13 +94,13 @@ export async function deleteRole(id: string) {
   if (error) throw new DbError('role_delete_failed', error.message)
 }
 
-export async function resolveRole(workspaceId: string, category: TaskCategory) {
+export async function resolveRole(workspaceId: string, categoryId: string) {
   const db = getServiceClient()
   const { data } = await db
     .from('workspace_roles')
     .select('*, roles(*)')
     .eq('workspace_id', workspaceId)
-    .eq('category', category)
+    .eq('category_id', categoryId)
     .single()
   // Null if no role configured — caller handles gracefully
   return (data as { roles: Database['public']['Tables']['roles']['Row'] } | null)?.roles ?? null
@@ -116,11 +116,11 @@ export async function getWorkspaceRoles(workspaceId: string) {
   return data ?? []
 }
 
-export async function setWorkspaceRole(workspaceId: string, category: TaskCategory, roleId: string) {
+export async function setWorkspaceRole(workspaceId: string, categoryId: string, roleId: string) {
   const db = getServiceClient()
   const { error } = await db
     .from('workspace_roles')
-    .upsert({ workspace_id: workspaceId, category, role_id: roleId }, { onConflict: 'workspace_id,category' })
+    .upsert({ workspace_id: workspaceId, category_id: categoryId, role_id: roleId }, { onConflict: 'workspace_id,category_id' })
   if (error) throw new DbError('workspace_role_set_failed', error.message)
 }
 
