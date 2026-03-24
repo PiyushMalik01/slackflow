@@ -1,9 +1,11 @@
 import { NextRequest } from 'next/server'
+import { WebClient } from '@slack/web-api'
 import { createAuthClient, getServiceClient } from '@/lib/db/client'
 import { listWorkspaceChannels } from '@/lib/slack/channels'
 import { decrypt } from '@/lib/utils/security'
 import { validateOrigin } from '@/lib/utils/csrf'
 import { jsonOk, json400, json401, json403, json500 } from '@/lib/utils/api-helpers'
+import { logger } from '@/lib/utils/logger'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const supabase = await createAuthClient()
@@ -49,6 +51,49 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!Array.isArray(monitoredChannels)) return json400('monitored_channels must be an array')
 
     const svc = getServiceClient()
+
+    // Get workspace to determine which channels were added/removed
+    const { data: workspace } = await svc.from('workspaces').select('*').eq('id', id).eq('owner_id', user.id).maybeSingle()
+    if (!workspace) return json403('Workspace not found')
+
+    const previousChannels: string[] = workspace.monitored_channels || []
+    const added = monitoredChannels.filter(ch => !previousChannels.includes(ch))
+    const removed = previousChannels.filter(ch => !monitoredChannels.includes(ch))
+
+    // Auto-join/leave channels via Slack API
+    const accessToken = decrypt(workspace.access_token_enc, workspace.access_token_iv)
+    const slack = new WebClient(accessToken)
+
+    const joinErrors: string[] = []
+
+    // Join newly monitored channels
+    for (const channelId of added) {
+      try {
+        await slack.conversations.join({ channel: channelId })
+        logger.info({ channelId, workspaceId: id }, 'Bot joined channel')
+      } catch (err: any) {
+        // If already in channel, that's fine. Log other errors.
+        if (err?.data?.error !== 'already_in_channel') {
+          logger.warn({ err: err?.data?.error, channelId }, 'Failed to join channel')
+          joinErrors.push(`#${channelId}: ${err?.data?.error || 'unknown error'}`)
+        }
+      }
+    }
+
+    // Leave un-monitored channels
+    for (const channelId of removed) {
+      try {
+        await slack.conversations.leave({ channel: channelId })
+        logger.info({ channelId, workspaceId: id }, 'Bot left channel')
+      } catch (err: any) {
+        // If not in channel, that's fine
+        if (err?.data?.error !== 'not_in_channel') {
+          logger.warn({ err: err?.data?.error, channelId }, 'Failed to leave channel')
+        }
+      }
+    }
+
+    // Update monitored channels list in DB
     const { error } = await svc
       .from('workspaces')
       .update({ monitored_channels: monitoredChannels })
@@ -56,7 +101,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       .eq('owner_id', user.id)
 
     if (error) throw error
-    return jsonOk({ success: true })
+
+    return jsonOk({
+      success: true,
+      joined: added.length,
+      left: removed.length,
+      errors: joinErrors.length > 0 ? joinErrors : undefined,
+    })
   } catch {
     return json500()
   }

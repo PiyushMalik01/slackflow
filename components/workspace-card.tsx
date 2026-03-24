@@ -9,6 +9,7 @@ import {
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { toast } from 'sonner'
 import Link from 'next/link'
 
 interface Channel {
@@ -73,15 +74,26 @@ export function WorkspaceCard({ workspace }: { workspace: Workspace }) {
 
     const monitoredIds = updated.filter(ch => ch.is_monitored).map(ch => ch.id)
 
+    const targetChannel = channels.find(ch => ch.id === channelId)
+    const isEnabling = !targetChannel?.is_monitored
+
     try {
-      await fetch(`/api/workspaces/${workspace.id}/channels`, {
+      const res = await fetch(`/api/workspaces/${workspace.id}/channels`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ monitored_channels: monitoredIds }),
       })
+      const data = await res.json()
+      if (data.errors?.length) {
+        toast.error(`Some channels had issues: ${data.errors.join(', ')}`)
+      } else if (isEnabling) {
+        toast.success(`Bot joined #${targetChannel?.name} and monitoring enabled`)
+      } else {
+        toast.success(`Bot left #${targetChannel?.name} and monitoring disabled`)
+      }
       router.refresh()
     } catch {
-      // Revert on failure
+      toast.error('Failed to update channel monitoring')
       setChannels(channels)
     } finally {
       setSaving(false)
@@ -174,7 +186,7 @@ export function WorkspaceCard({ workspace }: { workspace: Workspace }) {
               <div className="mt-3 space-y-1 max-h-64 overflow-y-auto">
                 {channels.length === 0 && !needsReauth ? (
                   <p className="text-xs text-muted-foreground text-center py-4">
-                    No channels found. Make sure the bot is invited to channels.
+                    No public channels found. The workspace may need re-authorization with the <code>channels:read</code> scope.
                   </p>
                 ) : (
                   channels.map(ch => (
