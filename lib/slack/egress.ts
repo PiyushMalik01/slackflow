@@ -1,17 +1,15 @@
 import { WebClient } from '@slack/web-api'
 import { decrypt } from '@/lib/utils/security'
-import { getWorkspaceById, updateTaskStatus, logActivity } from '@/lib/db/queries'
+import { getWorkspaceById, updateTaskStatus, logActivity, getTaskById } from '@/lib/db/queries'
 import { logger } from '@/lib/utils/logger'
+import { bot } from '@/lib/telegram/bot'
+import { getServiceClient } from '@/lib/db/client'
 
-export async function postReplyToSlack(task: {
-  id: string
-  workspace_id: string
-  channel: string
-  thread_ts: string
-  draft_text: string | null
-  edited_text: string | null
-}) {
-  const log = logger.child({ taskId: task.id, fn: 'postReplyToSlack' })
+export async function postReplyToSlack(taskId: string) {
+  const log = logger.child({ taskId, fn: 'postReplyToSlack' })
+
+  // Look up the task from DB
+  const task = await getTaskById(taskId)
   const workspace = await getWorkspaceById(task.workspace_id)
   const token = decrypt(workspace.access_token_enc, workspace.access_token_iv)
   const client = new WebClient(token)
@@ -55,6 +53,39 @@ export async function postReplyToSlack(task: {
   } catch (error) {
     log.error({ error }, 'Failed to post reply to Slack')
     await updateTaskStatus(task.id, 'failed')
+
+    // Notify admin via Telegram about the failure
+    try {
+      if (bot) {
+        const supabase = getServiceClient()
+        // Look up the workspace owner's admin chat ID
+        const { data: ownerRole } = await supabase
+          .from('roles')
+          .select('telegram_chat_id')
+          .eq('owner_id', workspace.owner_id)
+          .eq('type', 'admin')
+          .maybeSingle()
+
+        const adminChatId = ownerRole?.telegram_chat_id ?? null
+
+        if (adminChatId) {
+          const failureMsg =
+            `⚠️ <b>Slack Reply Failed</b>\n` +
+            `Workspace: <b>${workspace.name}</b>\n` +
+            `Channel: <b>#${task.channel}</b>\n` +
+            `Task ID: <code>${task.id}</code>\n` +
+            `Error: <i>${error instanceof Error ? error.message : 'Unknown error'}</i>`
+
+          await bot.sendMessage(adminChatId, failureMsg, { parse_mode: 'HTML' })
+          log.info({ adminChatId }, 'Admin notified of Slack reply failure via Telegram')
+        } else {
+          log.warn('No admin Telegram chat ID found, skipping failure notification')
+        }
+      }
+    } catch (notifyErr) {
+      log.error({ notifyErr }, 'Failed to send Telegram failure notification to admin')
+    }
+
     throw error
   }
 }
