@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(new URL('/login', req.url))
   }
 
-  const scopes = 'channels:history,chat:write,commands,users:read'
+  const scopes = 'channels:history,channels:read,chat:write,commands,users:read'
   const clientId = process.env.SLACK_CLIENT_ID
   // SLACK_REDIRECT_URI must be the ngrok URL so Slack can hit it publicly
   const redirectUri = process.env.SLACK_REDIRECT_URI ?? `${process.env.NEXT_PUBLIC_APP_URL}/api/slack/callback`
