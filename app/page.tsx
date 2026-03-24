@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
   MessageSquare,
   Brain,
@@ -131,6 +131,7 @@ function ParticleBackground() {
 
 function Navbar() {
   const [scrolled, setScrolled] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   useEffect(() => {
     function handleScroll() {
@@ -140,54 +141,119 @@ function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll)
   }, [])
 
+  // Close mobile menu on outside click
+  useEffect(() => {
+    if (!mobileOpen) return
+    function handleClick(e: MouseEvent) {
+      if (!(e.target as HTMLElement).closest('[data-navbar]')) setMobileOpen(false)
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [mobileOpen])
+
   return (
     <nav
+      data-navbar
       className={`fixed z-50 left-0 right-0 mx-auto transition-all duration-[800ms] ease-[cubic-bezier(0.25,0.1,0.25,1)] ${
         scrolled
-          ? 'top-4 w-[90%] max-w-2xl rounded-full border border-border/60 bg-background/80 backdrop-blur-xl shadow-lg px-6 py-2'
-          : 'top-0 w-full bg-background/80 backdrop-blur-md border-b border-border/40 px-6 py-3'
+          ? 'top-4 w-[90%] max-w-2xl rounded-full border border-border/60 bg-background/80 backdrop-blur-xl shadow-lg px-4 sm:px-6 py-2'
+          : 'top-0 w-full bg-background/80 backdrop-blur-md border-b border-border/40 px-4 sm:px-6 py-3'
       }`}
     >
       <div
-        className={`flex items-center justify-between gap-4 sm:gap-6 ${
+        className={`flex items-center justify-between gap-3 ${
           scrolled ? '' : 'max-w-7xl mx-auto'
         }`}
       >
         <PlatformLogo
-          imageSize={scrolled ? 40 : BRAND_LOGO_SIZES.landingNav}
+          imageSize={scrolled ? 32 : BRAND_LOGO_SIZES.landingNav}
           textClassName={scrolled ? 'text-sm' : 'text-lg'}
           priority
         />
 
-        <div className="flex items-center gap-2 sm:gap-4">
+        {/* Desktop nav */}
+        <div className="hidden sm:flex items-center gap-4">
           {!scrolled && (
             <>
+              <a href="#how-it-works" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+                How it Works
+              </a>
+              <a href="#features" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+                Features
+              </a>
+            </>
+          )}
+          <Link href="/login" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+            Sign in
+          </Link>
+          <Button asChild size={scrolled ? 'sm' : 'default'}>
+            <Link href="/signup">Get Started</Link>
+          </Button>
+          <ThemeToggle />
+        </div>
+
+        {/* Mobile: theme toggle + hamburger */}
+        <div className="flex sm:hidden items-center gap-1">
+          <ThemeToggle />
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="p-2 rounded-lg hover:bg-accent transition-colors"
+            aria-label="Menu"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              {mobileOpen ? (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile dropdown */}
+      <AnimatePresence>
+        {mobileOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.2, ease: 'easeInOut' }}
+            className="sm:hidden overflow-hidden"
+          >
+            <div className="flex flex-col gap-1 pt-3 pb-2 border-t border-border/40 mt-2">
               <a
                 href="#how-it-works"
-                className="hidden text-sm text-muted-foreground transition-colors hover:text-foreground sm:inline-block"
+                onClick={() => setMobileOpen(false)}
+                className="px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
               >
                 How it Works
               </a>
               <a
                 href="#features"
-                className="hidden text-sm text-muted-foreground transition-colors hover:text-foreground sm:inline-block"
+                onClick={() => setMobileOpen(false)}
+                className="px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
               >
                 Features
               </a>
-            </>
-          )}
-          <Link
-            href="/login"
-            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            Sign in
-          </Link>
-          <Button asChild size={scrolled ? 'sm' : 'lg'}>
-            <Link href="/signup">Get Started</Link>
-          </Button>
-          <ThemeToggle />
-        </div>
-      </div>
+              <Link
+                href="/login"
+                onClick={() => setMobileOpen(false)}
+                className="px-3 py-2.5 rounded-lg text-sm text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+              >
+                Sign in
+              </Link>
+              <Link
+                href="/signup"
+                onClick={() => setMobileOpen(false)}
+                className="mx-3 mt-1 flex items-center justify-center rounded-lg bg-primary text-primary-foreground px-4 py-2.5 text-sm font-medium hover:bg-primary/90 transition-colors"
+              >
+                Get Started
+              </Link>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </nav>
   )
 }
