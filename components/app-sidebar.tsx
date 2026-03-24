@@ -23,6 +23,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 const navItems = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -82,8 +83,9 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         })}
       </nav>
 
-      {/* Sign out */}
-      <div className="border-t p-3">
+      {/* Theme toggle + Sign out */}
+      <div className="border-t p-3 space-y-0.5">
+        <ThemeToggle className="flex w-full items-center justify-start gap-2.5 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground" />
         <button
           onClick={handleSignOut}
           className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
