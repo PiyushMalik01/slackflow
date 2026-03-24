@@ -4,18 +4,25 @@ import { decrypt, encrypt } from '@/lib/utils/security'
 import { logger } from '@/lib/utils/logger'
 
 export async function getOpenAIClient(ownerId?: string): Promise<OpenAI> {
-  // 1. Try user's stored credentials first
+  // 1. Server env key takes priority (admin's intentional choice, billed to server)
+  const serverKey = process.env.OPENAI_API_KEY
+  if (serverKey) {
+    return new OpenAI({ apiKey: serverKey, maxRetries: 3, timeout: 30_000 })
+  }
+
+  // 2. No server key — try user's stored credentials (ChatGPT OAuth or manual API key)
   if (ownerId) {
     const supabase = getServiceClient()
     const { data: settings } = await supabase
       .from('ai_settings')
-      .select('openai_api_key_enc, openai_api_key_iv, openai_token_expires, openai_refresh_token_enc, openai_refresh_token_iv')
+      .select('openai_api_key_enc, openai_api_key_iv, openai_auth_method, openai_token_expires, openai_refresh_token_enc, openai_refresh_token_iv')
       .eq('owner_id', ownerId)
       .maybeSingle()
 
     if (settings?.openai_api_key_enc) {
       try {
-        // Check if token needs refresh (within 5 min of expiry)
+        // For manual API keys (sk-*), use directly — these have real API quota
+        // For OAuth tokens, also try — but they may not have API access
         if (settings.openai_token_expires && settings.openai_refresh_token_enc) {
           const expiresAt = new Date(settings.openai_token_expires)
           const fiveMinFromNow = new Date(Date.now() + 5 * 60 * 1000)
@@ -46,19 +53,12 @@ export async function getOpenAIClient(ownerId?: string): Promise<OpenAI> {
         return new OpenAI({ apiKey, maxRetries: 3, timeout: 30_000 })
       } catch (err) {
         logger.error({ err }, 'Failed to decrypt user AI key')
-        // Don't fall through to server key — this user HAS a key but it failed
       }
     }
   }
 
-  // 2. Fall back to server env key
-  const serverKey = process.env.OPENAI_API_KEY
-  if (serverKey) {
-    return new OpenAI({ apiKey: serverKey, maxRetries: 3, timeout: 30_000 })
-  }
-
   // 3. No key available anywhere
-  throw new Error('No AI credentials available. Connect ChatGPT in Settings or set OPENAI_API_KEY.')
+  throw new Error('No AI credentials available. Set OPENAI_API_KEY or connect ChatGPT with API credits in Settings.')
 }
 
 // Backward compat — lazy getter that checks env at call time, not module load
