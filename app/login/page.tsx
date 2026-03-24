@@ -1,12 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Zap, Loader2 } from 'lucide-react'
 import { createBrowserClient } from '@/lib/db/browser-client'
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
@@ -23,7 +23,7 @@ export default function LoginPage() {
       if (data?.user) router.replace(nextPath)
     }
     checkUser()
-  }, [])
+  }, [router, nextPath, supabase.auth])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -112,5 +112,17 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-muted/30">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   )
 }
