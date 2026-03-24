@@ -52,7 +52,7 @@ export default async function ActivityPage() {
         ) : (
           <div className="divide-y divide-border">
             {logs.map((log) => (
-              <div key={log.id} className="px-5 py-4 flex items-start gap-3 hover:bg-muted/30 transition-colors">
+              <div key={log.id} className="px-4 md:px-5 py-4 flex flex-col gap-2 sm:flex-row sm:items-start sm:gap-3 hover:bg-muted/30 transition-colors">
                 <span className="text-lg flex-shrink-0 mt-0.5">{actionIcon[log.action] ?? '📌'}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium capitalize">{log.action.replace(/_/g, ' ')}</p>
@@ -63,7 +63,7 @@ export default async function ActivityPage() {
                     )}
                   </p>
                 </div>
-                <time className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
+                <time className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0 sm:mt-0.5">
                   {new Date(log.created_at).toLocaleString()}
                 </time>
               </div>

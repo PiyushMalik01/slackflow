@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Loader2, CheckCircle } from 'lucide-react'
 import { createBrowserClient } from '@/lib/db/browser-client'
-import { PlatformLogo } from '@/components/platform-logo'
+import { BRAND_LOGO_SIZES, PlatformLogo } from '@/components/platform-logo'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -71,7 +71,7 @@ export default function SignupPage() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
-            <PlatformLogo imageSize={72} textClassName="font-bold text-xl" priority />
+            <PlatformLogo imageSize={BRAND_LOGO_SIZES.auth} textClassName="font-bold text-xl" priority />
           </Link>
           <h1 className="text-2xl font-bold">Create your account</h1>
           <p className="text-sm text-muted-foreground mt-1">Start routing Slack messages smarter</p>

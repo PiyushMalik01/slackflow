@@ -18,14 +18,14 @@ export default async function WorkspacesPage({ searchParams }: { searchParams: P
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Workspaces</h1>
           <p className="text-sm text-muted-foreground mt-1">Manage connected Slack workspaces</p>
         </div>
         <Link
           href="/api/slack/install"
-          className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+          className="inline-flex w-full sm:w-auto justify-center items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
         >
           <Plus className="w-4 h-4" />
           Add to Slack
@@ -67,7 +67,7 @@ export default async function WorkspacesPage({ searchParams }: { searchParams: P
       ) : (
         <div className="grid gap-4">
           {workspaces.map((ws) => (
-            <div key={ws.id} className="bg-card border border-border rounded-xl p-5 flex items-center gap-4 hover:border-border/80 transition-colors">
+            <div key={ws.id} className="bg-card border border-border rounded-xl p-5 flex flex-col items-start gap-4 sm:flex-row sm:items-center hover:border-border/80 transition-colors">
               <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0">
                 <Building2 className="w-5 h-5 text-primary" />
               </div>
@@ -82,7 +82,7 @@ export default async function WorkspacesPage({ searchParams }: { searchParams: P
                   </div>
                 )}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
                 <span className="text-xs px-2 py-1 bg-green-500/10 text-green-600 dark:text-green-400 rounded-full font-medium">
                   Connected
                 </span>

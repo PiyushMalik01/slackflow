@@ -12,7 +12,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { createBrowserClient } from '@/lib/db/browser-client'
-import { PlatformLogo } from '@/components/platform-logo'
+import { BRAND_LOGO_SIZES, PlatformLogo } from '@/components/platform-logo'
 
 const navItems = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -36,7 +36,7 @@ export function AppSidebar() {
     <aside className="fixed inset-y-0 left-0 z-50 w-60 bg-sidebar border-r border-sidebar-border flex flex-col">
       {/* Logo */}
       <div className="h-14 flex items-center gap-2.5 px-4 border-b border-sidebar-border">
-        <PlatformLogo imageSize={56} textClassName="text-sm" />
+        <PlatformLogo imageSize={BRAND_LOGO_SIZES.sidebar} textClassName="text-sm" />
       </div>
 
       {/* Nav */}

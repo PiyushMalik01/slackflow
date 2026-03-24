@@ -58,7 +58,7 @@ export default async function DashboardPage() {
     : { data: [] }
 
   return (
-    <div className="max-w-7xl mx-auto space-y-8">
+    <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold">Overview</h1>
@@ -70,7 +70,7 @@ export default async function DashboardPage() {
           <h2 className="text-lg font-semibold text-primary mb-2">Welcome to SlackFlow! Let's get you set up.</h2>
           <p className="text-sm text-muted-foreground mb-6">Complete these steps to start routing your Slack messages automatically.</p>
           
-          <div className="grid sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-card border border-border p-4 rounded-lg relative">
               <div className="absolute top-4 right-4 text-xs font-bold text-muted-foreground">Step 1</div>
               <h3 className="font-medium text-sm mb-1 text-foreground">Get Telegram ID</h3>
@@ -141,16 +141,16 @@ export default async function DashboardPage() {
         ) : (
           <div className="divide-y divide-border">
             {tasks.map((task: any) => (
-              <div key={task.id} className="px-5 py-3.5 flex items-center gap-3 hover:bg-muted/30 transition-colors">
+              <div key={task.id} className="px-4 md:px-5 py-3.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 hover:bg-muted/30 transition-colors">
                 <div className="flex-1 min-w-0">
                   <p className="text-sm truncate">{task.original_text}</p>
-                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-2">
+                  <p className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
                     <span className="font-medium text-foreground">{task.workspace?.name || 'Unknown'}</span>
                     <span>#{task.channel}</span>
                     <span>· {new Date(task.created_at).toLocaleString()}</span>
                   </p>
                 </div>
-                <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+                <div className="flex flex-col items-start sm:items-end gap-1.5 flex-shrink-0">
                   <div className="flex items-center gap-2">
                     {task.category && (
                       <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${categoryColor[task.category] ?? ''}`}>

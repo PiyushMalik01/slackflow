@@ -1,13 +1,13 @@
 import Link from 'next/link'
 import { ArrowRight, Zap, Bell, CheckCircle, Shield, GitBranch, Activity } from 'lucide-react'
-import { PlatformLogo } from '@/components/platform-logo'
+import { BRAND_LOGO_SIZES, PlatformLogo } from '@/components/platform-logo'
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* Nav */}
       <nav className="border-b border-border/50 px-6 py-4 flex items-center justify-between max-w-7xl mx-auto">
-        <PlatformLogo imageSize={56} textClassName="text-lg" priority />
+        <PlatformLogo imageSize={BRAND_LOGO_SIZES.landingNav} textClassName="text-lg" priority />
         <div className="flex items-center gap-4">
           <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             Sign in
@@ -131,7 +131,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="border-t border-border/50 px-6 py-8 text-center text-xs text-muted-foreground max-w-7xl mx-auto">
-        <PlatformLogo className="justify-center mb-2" imageSize={40} textClassName="font-medium text-foreground" />
+        <PlatformLogo className="justify-center mb-2" imageSize={BRAND_LOGO_SIZES.landingFooter} textClassName="font-medium text-foreground" />
         <p>Automation pipeline for client request routing.</p>
       </footer>
     </div>

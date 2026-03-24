@@ -49,7 +49,7 @@ export default async function SettingsPage() {
         {/* Create role form */}
         <form action="/api/roles" method="POST" className="space-y-3">
           <input type="hidden" name="owner_id" value={user.id} />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-medium mb-1">Role name</label>
               <input

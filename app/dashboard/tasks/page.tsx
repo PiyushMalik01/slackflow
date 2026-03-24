@@ -72,7 +72,7 @@ export default async function TasksPage({
   return (
     <div className="max-w-6xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold">Tasks</h1>
           <p className="text-sm text-muted-foreground mt-1">{total} total tasks</p>
@@ -80,12 +80,12 @@ export default async function TasksPage({
       </div>
 
       {/* Filters */}
-      <form method="get" className="flex gap-2 flex-wrap">
+      <form method="get" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
         <input
           name="q"
           defaultValue={params.q}
           placeholder="Search messages…"
-          className="px-3 py-1.5 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring flex-1 min-w-48"
+          className="px-3 py-1.5 text-sm rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring sm:col-span-2 lg:col-span-1"
         />
         <select
           name="status"
@@ -123,8 +123,9 @@ export default async function TasksPage({
           </div>
         ) : (
           <>
-            <table className="w-full">
-              <thead>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px]">
+                <thead>
                 <tr className="border-b border-border text-xs text-muted-foreground">
                   <th className="text-left px-4 py-3 font-medium">Message</th>
                   <th className="text-left px-4 py-3 font-medium">Workspace & Channel</th>
@@ -132,51 +133,52 @@ export default async function TasksPage({
                   <th className="text-left px-4 py-3 font-medium">Status</th>
                   <th className="text-left px-4 py-3 font-medium">Created</th>
                 </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {tasks.map((task: any) => (
-                  <tr key={task.id} className="hover:bg-muted/30 transition-colors">
-                    <td className="px-4 py-3 max-w-xs">
-                      <p className="text-sm truncate">{task.original_text}</p>
-                      {task.draft_text && (
-                        <p className="text-xs text-muted-foreground truncate mt-0.5">
-                          Draft: {task.draft_text}
-                        </p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="text-sm font-medium">{task.workspace?.name || 'Unknown'}</p>
-                      <p className="text-xs text-muted-foreground">#{task.channel}</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col items-start gap-1">
-                        {task.category ? (
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${categoryColor[task.category] ?? ''}`}>
-                            {task.category}
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">—</span>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {tasks.map((task: any) => (
+                    <tr key={task.id} className="hover:bg-muted/30 transition-colors">
+                      <td className="px-4 py-3 max-w-xs">
+                        <p className="text-sm truncate">{task.original_text}</p>
+                        {task.draft_text && (
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">
+                            Draft: {task.draft_text}
+                          </p>
                         )}
-                        {task.role && (
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                            {task.role.name} ({task.role.type})
-                          </span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor[task.status] ?? ''}`}>
-                        {task.status.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                      {new Date(task.created_at).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                      </td>
+                      <td className="px-4 py-3">
+                        <p className="text-sm font-medium">{task.workspace?.name || 'Unknown'}</p>
+                        <p className="text-xs text-muted-foreground">#{task.channel}</p>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-col items-start gap-1">
+                          {task.category ? (
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${categoryColor[task.category] ?? ''}`}>
+                              {task.category}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-muted-foreground">—</span>
+                          )}
+                          {task.role && (
+                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                              {task.role.name} ({task.role.type})
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor[task.status] ?? ''}`}>
+                          {task.status.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                        {new Date(task.created_at).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             {totalPages > 1 && (
               <div className="px-4 py-3 border-t border-border flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Page {page} of {totalPages}</span>

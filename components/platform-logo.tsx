@@ -11,6 +11,13 @@ type PlatformLogoProps = {
 
 const LOGO_SRC = '/logo.png'
 
+export const BRAND_LOGO_SIZES = {
+  sidebar: 56,
+  auth: 72,
+  landingNav: 56,
+  landingFooter: 40,
+} as const
+
 export function PlatformLogo({
   showText = true,
   imageSize = 64,
@@ -25,8 +32,10 @@ export function PlatformLogo({
         alt="SlackFlow logo"
         width={imageSize}
         height={imageSize}
+        sizes={`${imageSize}px`}
         priority={priority}
         className="object-contain"
+        style={{ width: 'auto', height: 'auto' }}
       />
       {showText ? <span className={cn('font-semibold', textClassName)}>SlackFlow</span> : null}
     </div>
