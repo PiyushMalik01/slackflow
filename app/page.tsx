@@ -1,138 +1,316 @@
 import Link from 'next/link'
-import { ArrowRight, Zap, Bell, CheckCircle, Shield, GitBranch, Activity } from 'lucide-react'
+import {
+  MessageSquare,
+  Brain,
+  Bell,
+  CheckCircle,
+  Zap,
+  Tags,
+  Send,
+  Building2,
+  Users,
+  Shield,
+  ArrowRight,
+  ChevronRight,
+} from 'lucide-react'
 import { BRAND_LOGO_SIZES, PlatformLogo } from '@/components/platform-logo'
+import { Button } from '@/components/ui/button'
+
+const STEPS = [
+  {
+    icon: MessageSquare,
+    title: 'Message Arrives',
+    description: 'A client posts in your Slack channel',
+  },
+  {
+    icon: Brain,
+    title: 'AI Classifies',
+    description: 'AI categorizes and drafts a response',
+  },
+  {
+    icon: Bell,
+    title: 'Team Notified',
+    description: 'The right person gets a Telegram alert',
+  },
+  {
+    icon: CheckCircle,
+    title: 'Reply Sent',
+    description: 'Approved response posted back to Slack',
+  },
+] as const
+
+const FEATURES = [
+  {
+    icon: Zap,
+    title: 'Smart AI Routing',
+    description:
+      'AI classifies messages into custom categories and routes to the right person',
+  },
+  {
+    icon: Tags,
+    title: 'Custom Categories',
+    description:
+      'Define your own categories like Bug, Feature, Design, DevOps with descriptions that guide the AI',
+  },
+  {
+    icon: Send,
+    title: 'Telegram Notifications',
+    description:
+      'Team members get instant Telegram alerts with approve, edit, and dismiss buttons',
+  },
+  {
+    icon: Building2,
+    title: 'Multi-Workspace',
+    description:
+      'Connect multiple Slack workspaces and manage everything from one dashboard',
+  },
+  {
+    icon: Users,
+    title: 'Team Transparency',
+    description:
+      'Shared Telegram group shows real-time task feed so everyone knows what\u2019s happening',
+  },
+  {
+    icon: Shield,
+    title: 'Security First',
+    description:
+      'AES-256-GCM encryption, HMAC verification, rate limiting, and row-level security',
+  },
+] as const
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* Nav */}
-      <nav className="border-b border-border/50 px-6 py-4 flex items-center justify-between max-w-7xl mx-auto">
-        <PlatformLogo imageSize={BRAND_LOGO_SIZES.landingNav} textClassName="text-lg" priority />
-        <div className="flex items-center gap-4">
-          <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-            Sign in
-          </Link>
-          <Link
-            href="/signup"
-            className="text-sm bg-primary text-primary-foreground px-4 py-2 rounded-md hover:bg-primary/90 transition-colors"
-          >
-            Get started
-          </Link>
+      {/* ── Nav ─────────────────────────────────────────────────────── */}
+      <nav className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-lg">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
+          <PlatformLogo
+            imageSize={BRAND_LOGO_SIZES.landingNav}
+            textClassName="text-lg"
+            priority
+          />
+
+          <div className="flex items-center gap-2 sm:gap-6">
+            <a
+              href="#how-it-works"
+              className="hidden text-sm text-muted-foreground transition-colors hover:text-foreground sm:inline-block"
+            >
+              How it Works
+            </a>
+            <a
+              href="#features"
+              className="hidden text-sm text-muted-foreground transition-colors hover:text-foreground sm:inline-block"
+            >
+              Features
+            </a>
+            <Link
+              href="/login"
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Sign in
+            </Link>
+            <Button asChild size="lg">
+              <Link href="/signup">Get Started</Link>
+            </Button>
+          </div>
         </div>
       </nav>
 
-      {/* Hero */}
-      <section className="max-w-7xl mx-auto px-6 pt-24 pb-16 text-center">
-        <div className="inline-flex items-center gap-2 bg-primary/10 text-primary text-xs font-medium px-3 py-1.5 rounded-full mb-6 border border-primary/20">
-          <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
-          Powered by GPT-4o-mini
-        </div>
-        <h1 className="text-5xl md:text-6xl font-bold tracking-tight mb-6 max-w-4xl mx-auto">
-          Route client Slack messages<br />
-          <span className="text-primary">to the right person, instantly</span>
-        </h1>
-        <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed">
-          Connect multiple Slack workspaces. When a client asks for help, SlackFlow classifies the request,
-          generates an AI draft reply, and pings the right team member on Telegram — with one-tap approve.
-        </p>
-        <div className="flex items-center justify-center gap-4 flex-wrap">
-          <Link
-            href="/signup"
-            className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-lg font-medium hover:bg-primary/90 transition-all hover:gap-3"
-          >
-            Start for free <ArrowRight className="w-4 h-4" />
-          </Link>
-          <Link
-            href="/api/slack/install"
-            className="inline-flex items-center gap-2 border border-border px-6 py-3 rounded-lg font-medium hover:bg-muted transition-colors"
-          >
-            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.523 2.521 2.527 2.527 0 0 1-2.52-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.523 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.523 2.522A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.52-2.523 2.526 2.526 0 0 1 2.52-2.52h6.313A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/>
-            </svg>
-            Add to Slack
-          </Link>
-        </div>
-      </section>
+      {/* ── Hero ────────────────────────────────────────────────────── */}
+      <section className="relative isolate overflow-hidden">
+        {/* Gradient background */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 -z-10"
+          style={{
+            background:
+              'radial-gradient(ellipse 80% 60% at 50% -10%, rgba(124,58,237,0.12), transparent 70%), radial-gradient(ellipse 60% 50% at 80% 50%, rgba(37,99,235,0.08), transparent 60%)',
+          }}
+        />
 
-      {/* How it works */}
-      <section className="max-w-7xl mx-auto px-6 py-16">
-        <h2 className="text-center text-2xl font-semibold mb-12">How it works</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {[
-            {
-              step: '01',
-              icon: <GitBranch className="w-5 h-5" />,
-              title: 'Client sends a Slack message',
-              desc: 'Any message in your connected Slack channels is automatically captured and classified as Bug, Feature, or General.',
-            },
-            {
-              step: '02',
-              icon: <Zap className="w-5 h-5" />,
-              title: 'AI drafts a reply',
-              desc: 'GPT-4o-mini generates a professional, context-aware draft reply and routes it to the right team member via Telegram.',
-            },
-            {
-              step: '03',
-              icon: <CheckCircle className="w-5 h-5" />,
-              title: 'One-tap approval',
-              desc: 'The assignee sees the draft in Telegram and taps Approve, Edit, or Dismiss. Approved replies post instantly to Slack.',
-            },
-          ].map((item) => (
-            <div key={item.step} className="relative p-6 rounded-xl border border-border/50 bg-card hover:border-border transition-colors">
-              <div className="text-xs font-mono text-muted-foreground mb-4">{item.step}</div>
-              <div className="w-9 h-9 bg-primary/10 text-primary rounded-lg flex items-center justify-center mb-4">
-                {item.icon}
-              </div>
-              <h3 className="font-semibold mb-2">{item.title}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed">{item.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+        <div className="mx-auto max-w-4xl px-6 pb-20 pt-24 text-center sm:pt-32 lg:pt-40">
+          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-4 py-1.5 text-xs font-medium text-violet-700 dark:text-violet-300">
+            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-violet-500" />
+            Powered by AI
+          </div>
 
-      {/* Features grid */}
-      <section className="max-w-7xl mx-auto px-6 py-16">
-        <h2 className="text-center text-2xl font-semibold mb-12">Everything you need</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[
-            { icon: <Activity className="w-5 h-5" />, title: 'Multi-workspace', desc: 'Connect unlimited Slack workspaces and manage them all from one dashboard.' },
-            { icon: <Bell className="w-5 h-5" />, title: 'Telegram alerts', desc: 'Instant notifications with inline buttons. No app switching needed.' },
-            { icon: <Zap className="w-5 h-5" />, title: 'AI drafts', desc: 'GPT-4o-mini generates empathetic, professional replies for each request type.' },
-            { icon: <GitBranch className="w-5 h-5" />, title: 'Role routing', desc: 'Bugs go to builders, features to PMs. Fully configurable per workspace.' },
-            { icon: <Shield className="w-5 h-5" />, title: 'Secure', desc: 'AES-256-GCM encrypted tokens. HMAC-verified webhooks. No compromises.' },
-            { icon: <CheckCircle className="w-5 h-5" />, title: 'Audit trail', desc: 'Every action logged. See who approved what and when, forever.' },
-          ].map((f) => (
-            <div key={f.title} className="p-5 rounded-lg border border-border/50 bg-card/50 hover:bg-card hover:border-border transition-all group">
-              <div className="w-8 h-8 bg-primary/10 text-primary rounded-md flex items-center justify-center mb-3 group-hover:bg-primary/15 transition-colors">
-                {f.icon}
-              </div>
-              <h3 className="font-medium mb-1 text-sm">{f.title}</h3>
-              <p className="text-xs text-muted-foreground leading-relaxed">{f.desc}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+          <h1 className="text-4xl font-bold leading-[1.1] tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
+            AI routes your Slack messages{' '}
+            <span className="bg-gradient-to-r from-violet-600 to-blue-600 bg-clip-text text-transparent">
+              to the right person, automatically
+            </span>
+          </h1>
 
-      {/* CTA */}
-      <section className="max-w-7xl mx-auto px-6 py-16">
-        <div className="bg-primary/5 border border-primary/20 rounded-2xl p-12 text-center">
-          <h2 className="text-3xl font-bold mb-4">Start routing smarter today</h2>
-          <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-            Set up in minutes. No credit card required.
+          <p className="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
+            Connect your Slack workspaces, let AI classify and draft responses,
+            and notify your team via Telegram. From message to action in seconds.
           </p>
-          <Link
-            href="/signup"
-            className="inline-flex items-center gap-2 bg-primary text-primary-foreground px-8 py-3 rounded-lg font-medium hover:bg-primary/90 transition-all"
-          >
-            Create your account <ArrowRight className="w-4 h-4" />
-          </Link>
+
+          <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
+            <Button asChild size="lg" className="h-12 px-8 text-base">
+              <Link href="/signup">
+                Get Started
+                <ArrowRight className="ml-1 size-4" />
+              </Link>
+            </Button>
+            <Button
+              asChild
+              variant="outline"
+              size="lg"
+              className="h-12 px-8 text-base"
+            >
+              <a href="#how-it-works">
+                See how it works
+                <ChevronRight className="ml-1 size-4" />
+              </a>
+            </Button>
+          </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border/50 px-6 py-8 text-center text-xs text-muted-foreground max-w-7xl mx-auto">
-        <PlatformLogo className="justify-center mb-2" imageSize={BRAND_LOGO_SIZES.landingFooter} textClassName="font-medium text-foreground" />
-        <p>Automation pipeline for client request routing.</p>
+      {/* ── How It Works ────────────────────────────────────────────── */}
+      <section id="how-it-works" className="border-t border-border/40 bg-muted/30 py-24">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="mb-16 text-center">
+            <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-violet-600 dark:text-violet-400">
+              How it works
+            </p>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Four steps. Zero friction.
+            </h2>
+          </div>
+
+          <div className="relative grid grid-cols-1 gap-12 md:grid-cols-4 md:gap-0">
+            {/* Connecting line (desktop only) */}
+            <div
+              aria-hidden="true"
+              className="absolute top-10 right-[12.5%] left-[12.5%] hidden h-px bg-gradient-to-r from-violet-300 via-blue-300 to-violet-300 dark:from-violet-700 dark:via-blue-700 dark:to-violet-700 md:block"
+            />
+
+            {STEPS.map((step, i) => (
+              <div key={step.title} className="relative flex flex-col items-center text-center">
+                {/* Step number badge */}
+                <div className="relative z-10 mb-4 flex size-20 items-center justify-center rounded-2xl border border-border/60 bg-background shadow-sm transition-shadow hover:shadow-md">
+                  <step.icon className="size-8 text-violet-600 dark:text-violet-400" />
+                </div>
+
+                <span className="mb-1 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Step {i + 1}
+                </span>
+                <h3 className="mb-2 text-lg font-semibold">{step.title}</h3>
+                <p className="max-w-[200px] text-sm leading-relaxed text-muted-foreground">
+                  {step.description}
+                </p>
+
+                {/* Connecting arrow (mobile only) */}
+                {i < STEPS.length - 1 && (
+                  <div
+                    aria-hidden="true"
+                    className="mt-6 flex flex-col items-center text-muted-foreground/40 md:hidden"
+                  >
+                    <div className="h-6 w-px bg-current" />
+                    <ChevronRight className="size-4 rotate-90" />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Features ────────────────────────────────────────────────── */}
+      <section id="features" className="py-24">
+        <div className="mx-auto max-w-7xl px-6">
+          <div className="mb-16 text-center">
+            <p className="mb-2 text-sm font-semibold uppercase tracking-widest text-violet-600 dark:text-violet-400">
+              Features
+            </p>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Everything you need to route smarter
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
+              Built for teams that handle high volumes of Slack messages and need
+              a reliable system to triage, respond, and stay accountable.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map((feature) => (
+              <div
+                key={feature.title}
+                className="group rounded-2xl border border-border/50 bg-card/60 p-7 transition-all duration-200 hover:border-border hover:shadow-lg hover:shadow-violet-500/5 dark:hover:shadow-violet-500/10"
+              >
+                <div className="mb-5 flex size-12 items-center justify-center rounded-xl bg-violet-500/10 text-violet-600 transition-colors group-hover:bg-violet-500/15 dark:text-violet-400">
+                  <feature.icon className="size-6" />
+                </div>
+                <h3 className="mb-2 text-base font-semibold">{feature.title}</h3>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  {feature.description}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CTA ─────────────────────────────────────────────────────── */}
+      <section className="py-24">
+        <div className="mx-auto max-w-3xl px-6">
+          <div
+            className="relative isolate overflow-hidden rounded-3xl px-8 py-16 text-center sm:px-16"
+            style={{
+              background:
+                'linear-gradient(135deg, rgba(124,58,237,0.08) 0%, rgba(37,99,235,0.08) 100%)',
+            }}
+          >
+            {/* Decorative rings */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -top-24 -right-24 -z-10 size-72 rounded-full opacity-20"
+              style={{
+                background:
+                  'radial-gradient(circle, rgba(124,58,237,0.3), transparent 70%)',
+              }}
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -bottom-16 -left-16 -z-10 size-56 rounded-full opacity-20"
+              style={{
+                background:
+                  'radial-gradient(circle, rgba(37,99,235,0.3), transparent 70%)',
+              }}
+            />
+
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Ready to streamline your workflow?
+            </h2>
+            <p className="mx-auto mt-4 max-w-md text-muted-foreground">
+              Start routing smarter today
+            </p>
+            <div className="mt-8">
+              <Button asChild size="lg" className="h-12 px-8 text-base">
+                <Link href="/signup">
+                  Get Started &mdash; it&rsquo;s free
+                  <ArrowRight className="ml-1 size-4" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Footer ──────────────────────────────────────────────────── */}
+      <footer className="border-t border-border/40 py-10">
+        <div className="mx-auto flex max-w-7xl flex-col items-center gap-3 px-6 text-center">
+          <PlatformLogo
+            imageSize={BRAND_LOGO_SIZES.landingFooter}
+            textClassName="font-medium text-foreground"
+          />
+          <p className="text-sm text-muted-foreground">Built with AI</p>
+          <p className="text-xs text-muted-foreground/60">
+            &copy; {new Date().getFullYear()} SlackFlow. All rights reserved.
+          </p>
+        </div>
       </footer>
     </div>
   )
