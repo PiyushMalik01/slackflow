@@ -30,22 +30,20 @@ export function PlatformLogo({
         alt="SlackFlow logo"
         width={imageSize}
         height={imageSize}
-        sizes={`${imageSize}px`}
         priority={priority}
         draggable={false}
         className="object-contain dark:hidden"
-        style={{ width: 'auto', height: 'auto' }}
+        style={{ width: imageSize, height: 'auto' }}
       />
       <Image
         src="/logo_darktheme.png"
         alt="SlackFlow logo"
         width={imageSize}
         height={imageSize}
-        sizes={`${imageSize}px`}
         priority={priority}
         draggable={false}
         className="hidden object-contain dark:block"
-        style={{ width: 'auto', height: 'auto' }}
+        style={{ width: imageSize, height: 'auto' }}
       />
       {showText ? <span className={cn('font-semibold', textClassName)}>SlackFlow</span> : null}
     </div>
