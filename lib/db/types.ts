@@ -30,12 +30,18 @@ export interface Database {
           monitored_channels: string[]
           installed_at: string
           updated_at: string
+          team_group_chat_id: string | null
+          daily_digest_time: string | null
+          accent_color: string
         }
         Insert: Omit<Database['public']['Tables']['workspaces']['Row'], 'id' | 'installed_at' | 'updated_at'> & {
           id?: string
           installed_at?: string
           updated_at?: string
           monitored_channels?: string[]
+          team_group_chat_id?: string | null
+          daily_digest_time?: string | null
+          accent_color?: string
         }
         Update: Partial<Database['public']['Tables']['workspaces']['Insert']>
       }
@@ -88,6 +94,7 @@ export interface Database {
           draft_generated_at: string | null
           sent_at: string | null
           category_id: string | null
+          thread_context: string | null
           created_at: string
           updated_at: string
         }
@@ -97,6 +104,7 @@ export interface Database {
           updated_at?: string
           category_id?: string | null
           ai_prompt_version?: string | null
+          thread_context?: string | null
         }
         Update: Partial<Database['public']['Tables']['tasks']['Insert']>
       }
@@ -163,6 +171,53 @@ export interface Database {
         }
         Update: Partial<Database['public']['Tables']['invite_tokens']['Insert']>
       }
+      telegram_sessions: {
+        Row: {
+          id: string
+          chat_id: string
+          task_id: string
+          state: 'editing' | 'confirming'
+          draft_text: string | null
+          expires_at: string
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['telegram_sessions']['Row'], 'id' | 'created_at'> & {
+          id?: string
+          created_at?: string
+          draft_text?: string | null
+        }
+        Update: Partial<Database['public']['Tables']['telegram_sessions']['Insert']>
+      }
+      processed_events: {
+        Row: {
+          event_id: string
+          workspace_id: string
+          processed_at: string
+        }
+        Insert: {
+          event_id: string
+          workspace_id: string
+          processed_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['processed_events']['Insert']>
+      }
+      slack_user_cache: {
+        Row: {
+          slack_user_id: string
+          workspace_id: string
+          display_name: string
+          avatar_url: string | null
+          cached_at: string
+        }
+        Insert: {
+          slack_user_id: string
+          workspace_id: string
+          display_name: string
+          avatar_url?: string | null
+          cached_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['slack_user_cache']['Insert']>
+      }
     }
   }
 }
@@ -185,4 +240,28 @@ export interface InviteToken {
   expires_at: string
   used_at: string | null
   created_at: string
+}
+
+export interface TelegramSession {
+  id: string
+  chat_id: string
+  task_id: string
+  state: 'editing' | 'confirming'
+  draft_text: string | null
+  expires_at: string
+  created_at: string
+}
+
+export interface ProcessedEvent {
+  event_id: string
+  workspace_id: string
+  processed_at: string
+}
+
+export interface SlackUserCache {
+  slack_user_id: string
+  workspace_id: string
+  display_name: string
+  avatar_url: string | null
+  cached_at: string
 }
