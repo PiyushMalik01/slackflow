@@ -1,19 +1,58 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { handleApprove, handleEdit, handleDismiss, handleEditReply, isInEditMode } from '@/lib/telegram/callbacks'
+import { NextRequest } from 'next/server'
+import { verifyTelegramWebhook } from '@/lib/utils/security'
+import { handleApprove, handleEdit, handleDismiss, handleViewOriginal, handleEditReply, handleEditConfirm, handleEditCancel } from '@/lib/telegram/callbacks'
+import { handleStartCommand, handlePendingCommand, handleStatusCommand, handleHelpCommand, handleBoardCommand, handleSummaryCommand } from '@/lib/telegram/commands'
 import { logger } from '@/lib/utils/logger'
 
 export async function POST(req: NextRequest) {
+  // Verify webhook secret
+  const secretHeader = req.headers.get('x-telegram-bot-api-secret-token')
+  if (!verifyTelegramWebhook(secretHeader)) {
+    return new Response('Forbidden', { status: 403 })
+  }
+
   try {
-    const update = await req.json()
+    const body = await req.json()
 
-    // Handle inline keyboard callback buttons (Approve / Edit / Dismiss)
-    if (update.callback_query) {
-      const query = update.callback_query
-      const chatId = String(query.message.chat.id)
-      const messageId = query.message.message_id
-      const data = query.data as string // "{taskId}:approve" etc.
+    // Handle bot commands
+    if (body.message?.text) {
+      const chatId = body.message.chat.id
+      const text = body.message.text.trim()
 
-      const [taskId, action] = data.split(':')
+      if (text.startsWith('/start')) {
+        const payload = text.split(' ')[1] || ''
+        await handleStartCommand(chatId, payload)
+        return new Response('ok')
+      }
+      if (text === '/pending') { await handlePendingCommand(chatId); return new Response('ok') }
+      if (text === '/status') { await handleStatusCommand(chatId); return new Response('ok') }
+      if (text === '/help') { await handleHelpCommand(chatId); return new Response('ok') }
+      if (text === '/board') { await handleBoardCommand(chatId); return new Response('ok') }
+      if (text === '/summary') { await handleSummaryCommand(chatId); return new Response('ok') }
+
+      // Not a command — check for active edit session
+      await handleEditReply(chatId, text)
+      return new Response('ok')
+    }
+
+    // Handle callback queries (button presses)
+    if (body.callback_query) {
+      const query = body.callback_query
+      const chatId = query.message?.chat?.id
+      const messageId = query.message?.message_id
+      const data = query.data || ''
+
+      // Parse callback data: "{taskId}:{action}"
+      const colonIndex = data.indexOf(':')
+      if (colonIndex === -1) return new Response('ok')
+      const taskId = data.substring(0, colonIndex)
+      const action = data.substring(colonIndex + 1)
+
+      // Acknowledge callback query
+      try {
+        const { bot } = await import('@/lib/telegram/bot')
+        await bot.answerCallbackQuery(query.id)
+      } catch { /* ignore ack errors */ }
 
       switch (action) {
         case 'approve':
@@ -25,49 +64,23 @@ export async function POST(req: NextRequest) {
         case 'dismiss':
           await handleDismiss(taskId, chatId, messageId)
           break
-        default:
-          logger.warn({ action, taskId }, 'Unknown callback action')
+        case 'view_original':
+          await handleViewOriginal(taskId, chatId)
+          break
+        case 'confirm_edit':
+          await handleEditConfirm(taskId, chatId, messageId)
+          break
+        case 'cancel_edit':
+          await handleEditCancel(taskId, chatId, messageId)
+          break
       }
 
-      // Acknowledge the callback query to stop Telegram loading spinner
-      await fetch(
-        `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/answerCallbackQuery`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ callback_query_id: query.id }),
-        }
-      )
+      return new Response('ok')
     }
 
-    // Handle regular text messages (for Edit mode — user types their custom reply)
-    if (update.message?.text) {
-      const chatId = String(update.message.chat.id)
-      const text = update.message.text
-
-      if (isInEditMode(chatId)) {
-        const success = await handleEditReply(chatId, text)
-        if (success) {
-          // Send confirmation back to user
-          await fetch(
-            `https://api.telegram.org/bot${process.env.TELEGRAM_BOT_TOKEN}/sendMessage`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                chat_id: chatId,
-                text: '✅ Your reply has been sent to Slack.',
-                parse_mode: 'HTML',
-              }),
-            }
-          )
-        }
-      }
-    }
-
-    return NextResponse.json({ ok: true })
-  } catch (error) {
-    logger.error({ error }, 'Telegram webhook error')
-    return NextResponse.json({ ok: true }) // Always return 200 to Telegram
+    return new Response('ok')
+  } catch (err) {
+    logger.error({ err }, 'Telegram webhook error')
+    return new Response('ok') // Always 200 to prevent Telegram retries
   }
 }
