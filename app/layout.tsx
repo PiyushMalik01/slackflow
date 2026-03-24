@@ -13,11 +13,6 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: 'SlackFlow - AI-Powered Slack Task Routing',
   description: 'Route Slack messages to the right person with AI classification and Telegram notifications.',
-  icons: {
-    icon: '/favicon.png',
-    shortcut: '/favicon.png',
-    apple: '/favicon.png',
-  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

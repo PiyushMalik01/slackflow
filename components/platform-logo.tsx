@@ -32,6 +32,7 @@ export function PlatformLogo({
         height={imageSize}
         sizes={`${imageSize}px`}
         priority={priority}
+        draggable={false}
         className="object-contain dark:hidden"
         style={{ width: 'auto', height: 'auto' }}
       />
@@ -42,6 +43,7 @@ export function PlatformLogo({
         height={imageSize}
         sizes={`${imageSize}px`}
         priority={priority}
+        draggable={false}
         className="hidden object-contain dark:block"
         style={{ width: 'auto', height: 'auto' }}
       />

@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createAuthClient } from '@/lib/db/client'
 import { AppSidebar, MobileSidebarTrigger } from '@/components/app-sidebar'
 import { RealtimeProvider } from '@/components/realtime-provider'
+import { AuthListener } from '@/components/auth-listener'
 import { Suspense } from 'react'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -11,6 +12,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div className="min-h-screen bg-background">
+      <AuthListener />
       <AppSidebar />
       <div className="md:ml-64">
         {/* Mobile top bar */}

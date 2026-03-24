@@ -144,3 +144,8 @@
     @apply transition-colors duration-150 ease-in-out;
   }
 }
+
+img[alt*="logo"], img[alt*="Logo"] {
+  -webkit-user-drag: none;
+  user-select: none;
+}
