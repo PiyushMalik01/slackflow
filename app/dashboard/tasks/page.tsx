@@ -1,6 +1,4 @@
-import { redirect } from 'next/navigation'
-import { createAuthClient } from '@/lib/db/client'
-import { getServiceClient } from '@/lib/db/client'
+import { createAuthClient, getServiceClient } from '@/lib/db/client'
 import { listWorkspacesForUser, getCategories } from '@/lib/db/queries'
 import { Card, CardContent } from '@/components/ui/card'
 import { TaskCard } from '@/components/task-card'
@@ -16,9 +14,9 @@ export default async function TasksPage({
 }: {
   searchParams: Promise<{ status?: string; category?: string; search?: string; page?: string }>
 }) {
+  // Layout already validates auth and redirects — just get user ID for queries
   const supabase = await createAuthClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
 
   const params = await searchParams
   const page = Math.max(1, parseInt(params.page ?? '1'))
@@ -27,8 +25,8 @@ export default async function TasksPage({
 
   // Get user's workspaces and categories for filtering
   const [workspaces, categories] = await Promise.all([
-    listWorkspacesForUser(user.id).catch(() => []),
-    getCategories(user.id).catch(() => []),
+    listWorkspacesForUser(user!.id).catch(() => []),
+    getCategories(user!.id).catch(() => []),
   ])
   const workspaceIds = workspaces.map(w => w.id)
 

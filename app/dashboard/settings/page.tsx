@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import { createAuthClient, getServiceClient } from '@/lib/db/client'
 import { getCategories, seedDefaultCategories } from '@/lib/db/queries'
 import { SettingsClient } from '@/components/settings-interactive'
@@ -6,24 +5,26 @@ import { SettingsClient } from '@/components/settings-interactive'
 export const metadata = { title: 'Settings' }
 
 export default async function SettingsPage() {
+  // Layout already validates auth and redirects — just get user ID for queries
   const supabase = await createAuthClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
 
   const svc = getServiceClient()
 
-  // Load categories (seed defaults if empty)
-  let categories = await getCategories(user.id)
-  if (categories.length === 0) {
-    await seedDefaultCategories(user.id)
-    categories = await getCategories(user.id)
-  }
+  // Parallelize initial loads
+  let [categories, { data: workspaces }] = await Promise.all([
+    getCategories(user!.id),
+    svc
+      .from('workspaces')
+      .select('id, name, accent_color, team_group_chat_id, daily_digest_time')
+      .eq('owner_id', user!.id),
+  ])
 
-  // Load workspaces for preferences tab
-  const { data: workspaces } = await svc
-    .from('workspaces')
-    .select('id, name, accent_color, team_group_chat_id, daily_digest_time')
-    .eq('owner_id', user.id)
+  // Seed defaults if empty (sequential — depends on categories result)
+  if (categories.length === 0) {
+    await seedDefaultCategories(user!.id)
+    categories = await getCategories(user!.id)
+  }
 
   return (
     <div className="space-y-6">

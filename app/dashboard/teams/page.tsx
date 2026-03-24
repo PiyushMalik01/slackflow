@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import { createAuthClient, getServiceClient } from '@/lib/db/client'
 import { getCategories } from '@/lib/db/queries'
 import { TeamsClient } from '@/components/teams-interactive'
@@ -6,33 +5,31 @@ import { TeamsClient } from '@/components/teams-interactive'
 export const metadata = { title: 'Teams' }
 
 export default async function TeamsPage() {
+  // Layout already validates auth and redirects — just get user ID for queries
   const supabase = await createAuthClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
 
   const svc = getServiceClient()
 
-  // Load roles with invite tokens
-  const { data: roles } = await svc
-    .from('roles')
-    .select('*, invite_tokens(token, expires_at, used_at)')
-    .eq('owner_id', user.id)
-    .order('created_at')
+  // Parallelize independent queries
+  const [{ data: roles }, { data: workspaces }, categories] = await Promise.all([
+    svc
+      .from('roles')
+      .select('*, invite_tokens(token, expires_at, used_at)')
+      .eq('owner_id', user!.id)
+      .order('created_at'),
+    svc
+      .from('workspaces')
+      .select('id, name')
+      .eq('owner_id', user!.id),
+    getCategories(user!.id),
+  ])
 
-  // Load workspaces
-  const { data: workspaces } = await svc
-    .from('workspaces')
-    .select('id, name')
-    .eq('owner_id', user.id)
-
-  // Load workspace role mappings (scoped to user's workspaces)
+  // Load workspace role mappings (depends on workspaces result)
   const wsIds = (workspaces || []).map((w: { id: string }) => w.id)
   const { data: workspaceRoles } = wsIds.length > 0
     ? await svc.from('workspace_roles').select('*').in('workspace_id', wsIds)
     : { data: [] }
-
-  // Load categories for routing tab
-  const categories = await getCategories(user.id)
 
   return (
     <div className="space-y-6">

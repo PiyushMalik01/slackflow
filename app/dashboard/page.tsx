@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import { createAuthClient } from '@/lib/db/client'
 import { getDashboardMetrics, getRecentTasks, getSetupStatus, getCategories } from '@/lib/db/queries'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -21,19 +20,19 @@ function getRelativeTime(dateStr: string): string {
 }
 
 export default async function DashboardPage() {
+  // Layout already validates auth and redirects — just get user ID for queries
   const supabase = await createAuthClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
 
   const [metrics, recentTasks, setup, categories] = await Promise.all([
-    getDashboardMetrics(user.id).catch(() => ({
+    getDashboardMetrics(user!.id).catch(() => ({
       tasksToday: 0, approvalRate: 0, pendingCount: 0, totalTasks: 0,
     })),
-    getRecentTasks(user.id).catch(() => []),
-    getSetupStatus(user.id).catch(() => ({
+    getRecentTasks(user!.id).catch(() => []),
+    getSetupStatus(user!.id).catch(() => ({
       hasWorkspace: false, hasRoles: false, hasLinkedMembers: false, hasCategories: false,
     })),
-    getCategories(user.id).catch(() => []),
+    getCategories(user!.id).catch(() => []),
   ])
 
   // Build category lookup map for enriching tasks with emoji/color

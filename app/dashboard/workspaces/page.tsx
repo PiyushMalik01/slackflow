@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import { createAuthClient, getServiceClient } from '@/lib/db/client'
 import { Building2, Plus, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
@@ -14,9 +13,9 @@ export default async function WorkspacesPage({
 }: {
   searchParams: Promise<{ success?: string; error?: string }>
 }) {
+  // Layout already validates auth and redirects — just get user ID for queries
   const supabase = await createAuthClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) redirect('/login')
 
   const svc = getServiceClient()
 
@@ -24,7 +23,7 @@ export default async function WorkspacesPage({
   const { data: workspaces } = await svc
     .from('workspaces')
     .select('*')
-    .eq('owner_id', user.id)
+    .eq('owner_id', user!.id)
     .order('installed_at', { ascending: false })
 
   const params = await searchParams
