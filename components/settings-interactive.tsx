@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, lazy, Suspense } from 'react'
 import { useRouter } from 'next/navigation'
+import { useTheme } from 'next-themes'
 import {
   Plus, Save, Trash2, Edit2, X, Loader2,
   Tag, Sliders, CheckCircle2, XCircle, RefreshCw,
@@ -1015,8 +1016,11 @@ function CategoryForm({
 // -- Emoji Picker Dropdown ----------------------------------------------------
 
 const LazyEmojiPicker = lazy(() => import('emoji-picker-react'))
+const EMOJI_THEME_DARK = 'dark' as 'dark' & import('emoji-picker-react').Theme
+const EMOJI_THEME_LIGHT = 'light' as 'light' & import('emoji-picker-react').Theme
 
 function EmojiPickerDropdown({ onSelect }: { onSelect: (emoji: string) => void }) {
+  const { resolvedTheme } = useTheme()
   return (
     <div className="rounded-xl border shadow-xl bg-popover overflow-hidden">
       <Suspense fallback={<div className="w-[350px] h-[400px] flex items-center justify-center text-sm text-muted-foreground">Loading...</div>}>
@@ -1028,6 +1032,7 @@ function EmojiPickerDropdown({ onSelect }: { onSelect: (emoji: string) => void }
           previewConfig={{ showPreview: false }}
           skinTonesDisabled
           lazyLoadEmojis
+          theme={resolvedTheme === 'dark' ? EMOJI_THEME_DARK : EMOJI_THEME_LIGHT}
         />
       </Suspense>
     </div>

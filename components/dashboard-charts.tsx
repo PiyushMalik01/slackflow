@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import { useTheme } from 'next-themes'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, Label,
@@ -62,6 +63,10 @@ function StatusTooltip({ active, payload }: any) {
 }
 
 export function DashboardCharts({ categoryData, statusData }: DashboardChartsProps) {
+  const { resolvedTheme } = useTheme()
+  const textColor = resolvedTheme === 'dark' ? '#A1A1AA' : '#71717A'
+  const foregroundColor = resolvedTheme === 'dark' ? '#FAFAFA' : '#09090B'
+  const gridColor = resolvedTheme === 'dark' ? '#27272A' : '#F4F4F5'
   const categoryTotal = useMemo(() => categoryData.reduce((s, d) => s + d.count, 0), [categoryData])
   const enrichedCategoryData = useMemo(
     () => categoryData.map(d => ({ ...d, _total: categoryTotal })),
@@ -111,7 +116,7 @@ export function DashboardCharts({ categoryData, statusData }: DashboardChartsPro
                 </defs>
                 <XAxis
                   type="number"
-                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 12, fill: textColor }}
                   allowDecimals={false}
                   tickLine={false}
                   axisLine={false}
@@ -119,12 +124,12 @@ export function DashboardCharts({ categoryData, statusData }: DashboardChartsPro
                 <YAxis
                   type="category"
                   dataKey="name"
-                  tick={{ fontSize: 12, fill: 'hsl(var(--foreground))' }}
+                  tick={{ fontSize: 12, fill: foregroundColor }}
                   width={110}
                   tickLine={false}
                   axisLine={false}
                 />
-                <Tooltip content={<CategoryTooltip />} cursor={{ fill: 'hsl(var(--muted))', radius: 4 }} />
+                <Tooltip content={<CategoryTooltip />} cursor={{ fill: gridColor, radius: 4 }} />
                 <Bar dataKey="count" radius={[0, 6, 6, 0]} animationDuration={800} animationEasing="ease-out">
                   {enrichedCategoryData.map((_entry, index) => (
                     <Cell key={index} fill={`url(#catGrad-${index})`} />
@@ -169,7 +174,7 @@ export function DashboardCharts({ categoryData, statusData }: DashboardChartsPro
                     value={statusTotal}
                     position="center"
                     className="text-2xl font-bold"
-                    fill="hsl(var(--foreground))"
+                    fill={foregroundColor}
                   />
                 </Pie>
                 <Tooltip content={<StatusTooltip />} />

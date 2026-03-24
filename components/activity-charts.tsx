@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import { useTheme } from 'next-themes'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend, Label,
@@ -73,6 +74,10 @@ function ActionTooltip({ active, payload }: any) {
 }
 
 export function ActivityCharts({ dailyData, actionData }: ActivityChartsProps) {
+  const { resolvedTheme } = useTheme()
+  const textColor = resolvedTheme === 'dark' ? '#A1A1AA' : '#71717A'
+  const foregroundColor = resolvedTheme === 'dark' ? '#FAFAFA' : '#09090B'
+  const gridColor = resolvedTheme === 'dark' ? '#27272A' : '#F4F4F5'
   const actionTotal = useMemo(() => actionData.reduce((s, d) => s + d.count, 0), [actionData])
 
   const coloredActionData = useMemo(
@@ -109,17 +114,17 @@ export function ActivityCharts({ dailyData, actionData }: ActivityChartsProps) {
                 </defs>
                 <XAxis
                   dataKey="date"
-                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 12, fill: textColor }}
                   tickLine={false}
                   axisLine={false}
                 />
                 <YAxis
-                  tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+                  tick={{ fontSize: 12, fill: textColor }}
                   allowDecimals={false}
                   tickLine={false}
                   axisLine={false}
                 />
-                <Tooltip content={<DailyTooltip />} cursor={{ fill: 'hsl(var(--muted))', radius: 4 }} />
+                <Tooltip content={<DailyTooltip />} cursor={{ fill: gridColor, radius: 4 }} />
                 <Bar
                   dataKey="count"
                   fill="url(#dailyBarGrad)"
@@ -166,7 +171,7 @@ export function ActivityCharts({ dailyData, actionData }: ActivityChartsProps) {
                     value={actionTotal}
                     position="center"
                     className="text-2xl font-bold"
-                    fill="hsl(var(--foreground))"
+                    fill={foregroundColor}
                   />
                 </Pie>
                 <Tooltip content={<ActionTooltip />} />

@@ -4,12 +4,13 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Building2, ChevronDown, ChevronUp, Hash, Loader2,
-  AlertTriangle, Calendar, Radio
+  AlertTriangle, Calendar, Radio, Trash2
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 import Link from 'next/link'
 
 interface Channel {
@@ -36,6 +37,7 @@ export function WorkspaceCard({ workspace }: { workspace: Workspace }) {
   const [loading, setLoading] = useState(false)
   const [needsReauth, setNeedsReauth] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
 
   const monitoredCount = workspace.monitored_channels?.length || 0
   const accentColor = workspace.accent_color || '#3B82F6'
@@ -105,6 +107,7 @@ export function WorkspaceCard({ workspace }: { workspace: Workspace }) {
   }
 
   return (
+    <>
     <Card className="overflow-hidden">
       <div className="flex">
         {/* Accent color stripe */}
@@ -140,6 +143,15 @@ export function WorkspaceCard({ workspace }: { workspace: Workspace }) {
                 <Badge variant="outline" className="text-green-600 dark:text-green-400 border-green-500/30 bg-green-500/10">
                   Connected
                 </Badge>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 h-7 w-7 p-0"
+                  onClick={() => setDeleteOpen(true)}
+                  title="Delete workspace"
+                >
+                  <Trash2 className="size-3.5" />
+                </Button>
               </div>
             </div>
           </CardHeader>
@@ -224,5 +236,24 @@ export function WorkspaceCard({ workspace }: { workspace: Workspace }) {
         </div>
       </div>
     </Card>
+
+    <ConfirmDialog
+      open={deleteOpen}
+      onOpenChange={setDeleteOpen}
+      title="Delete Workspace"
+      description={`Delete "${workspace.name}"? All tasks, routing rules, and activity logs for this workspace will be permanently removed.`}
+      confirmLabel="Delete Workspace"
+      variant="danger"
+      onConfirm={async () => {
+        const res = await fetch(`/api/workspaces/${workspace.id}`, { method: 'DELETE' })
+        if (res.ok) {
+          toast.success('Workspace deleted')
+          router.refresh()
+        } else {
+          toast.error('Failed to delete workspace')
+        }
+      }}
+    />
+    </>
   )
 }
