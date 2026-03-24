@@ -206,51 +206,64 @@ export async function getStaleTasks(olderThanMinutes: number) {
   return data ?? []
 }
 
-export async function getDashboardMetrics(ownerId: string) {
-  const db = getServiceClient()
-  const todayStart = new Date()
-  todayStart.setHours(0, 0, 0, 0)
+export async function getDashboardMetrics(ownerId: string, workspaceId?: string) {
+  const supabase = getServiceClient()
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
 
-  const workspaces = await listWorkspacesForUser(ownerId)
-  const workspaceIds = workspaces.map((w) => w.id)
+  let query = supabase.from('tasks').select('id, status, created_at, sent_at', { count: 'exact' })
 
-  if (workspaceIds.length === 0) {
-    return { tasksToday: 0, approvalRate: 0, activeWorkspaces: 0, pendingTasks: 0 }
+  if (workspaceId) {
+    query = query.eq('workspace_id', workspaceId)
+  } else {
+    // Filter by owner's workspaces
+    const { data: workspaces } = await supabase.from('workspaces').select('id').eq('owner_id', ownerId)
+    const wsIds = workspaces?.map(w => w.id) || []
+    if (wsIds.length === 0) return { tasksToday: 0, approvalRate: 0, pendingCount: 0, totalTasks: 0 }
+    query = query.in('workspace_id', wsIds)
   }
 
-  const { count: tasksToday } = await db
-    .from('tasks')
-    .select('id', { count: 'exact', head: true })
-    .in('workspace_id', workspaceIds)
-    .gte('created_at', todayStart.toISOString())
+  const { data: allTasks } = await query
+  const tasks = allTasks || []
 
-  const { count: totalSent } = await db
-    .from('tasks')
-    .select('id', { count: 'exact', head: true })
-    .in('workspace_id', workspaceIds)
-    .in('status', ['sent'])
+  const todayStr = today.toISOString()
+  const tasksToday = tasks.filter(t => t.created_at >= todayStr).length
+  const approved = tasks.filter(t => ['approved', 'edited', 'sent'].includes(t.status)).length
+  const approvalRate = tasks.length > 0 ? Math.round((approved / tasks.length) * 100) : 0
+  const pendingCount = tasks.filter(t => ['pending', 'draft_ready'].includes(t.status)).length
 
-  const { count: totalProcessed } = await db
-    .from('tasks')
-    .select('id', { count: 'exact', head: true })
-    .in('workspace_id', workspaceIds)
-    .in('status', ['sent', 'dismissed'])
+  return { tasksToday, approvalRate, pendingCount, totalTasks: tasks.length }
+}
 
-  const { count: pendingTasks } = await db
-    .from('tasks')
-    .select('id', { count: 'exact', head: true })
-    .in('workspace_id', workspaceIds)
-    .in('status', ['pending', 'draft_ready'])
+export async function getRecentTasks(ownerId: string, workspaceId?: string, limit = 10) {
+  const supabase = getServiceClient()
+  let query = supabase.from('tasks').select('*, workspaces(name, accent_color), roles(name)')
+    .order('created_at', { ascending: false })
+    .limit(limit)
 
-  const approvalRate = totalProcessed && totalProcessed > 0
-    ? Math.round(((totalSent ?? 0) / totalProcessed) * 100)
-    : 0
+  if (workspaceId) {
+    query = query.eq('workspace_id', workspaceId)
+  } else {
+    const { data: workspaces } = await supabase.from('workspaces').select('id').eq('owner_id', ownerId)
+    const wsIds = workspaces?.map(w => w.id) || []
+    if (wsIds.length > 0) query = query.in('workspace_id', wsIds)
+  }
+
+  const { data } = await query
+  return data || []
+}
+
+export async function getSetupStatus(ownerId: string) {
+  const supabase = getServiceClient()
+  const { data: workspaces } = await supabase.from('workspaces').select('id').eq('owner_id', ownerId)
+  const { data: roles } = await supabase.from('roles').select('id, status').eq('owner_id', ownerId)
+  const { data: categories } = await supabase.from('categories').select('id').eq('owner_id', ownerId)
 
   return {
-    tasksToday: tasksToday ?? 0,
-    approvalRate,
-    activeWorkspaces: workspaces.length,
-    pendingTasks: pendingTasks ?? 0,
+    hasWorkspace: (workspaces?.length || 0) > 0,
+    hasRoles: (roles?.length || 0) > 0,
+    hasLinkedMembers: roles?.some(r => r.status === 'linked') || false,
+    hasCategories: (categories?.length || 0) > 0,
   }
 }
 

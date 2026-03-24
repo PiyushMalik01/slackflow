@@ -1,26 +1,23 @@
 import { redirect } from 'next/navigation'
 import { createAuthClient } from '@/lib/db/client'
-import { getDashboardMetrics, listWorkspacesForUser, listRolesForUser } from '@/lib/db/queries'
-import { getServiceClient } from '@/lib/db/client'
-import { TrendingUp, Building2, ListChecks, Clock, ArrowRight } from 'lucide-react'
+import { getDashboardMetrics, getRecentTasks, getSetupStatus } from '@/lib/db/queries'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { CategoryBadge } from '@/components/category-badge'
+import { StatusPill } from '@/components/status-pill'
+import { ListChecks, TrendingUp, Clock, Hash, ArrowRight, CheckCircle2, Circle } from 'lucide-react'
 import Link from 'next/link'
 
 export const metadata = { title: 'Overview' }
 
-const statusColor: Record<string, string> = {
-  sent: 'bg-green-500/10 text-green-600 dark:text-green-400',
-  approved: 'bg-green-500/10 text-green-600 dark:text-green-400',
-  draft_ready: 'bg-blue-500/10 text-blue-600 dark:text-blue-400',
-  pending: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400',
-  dismissed: 'bg-muted text-muted-foreground',
-  failed: 'bg-red-500/10 text-red-600 dark:text-red-400',
-  edited: 'bg-green-500/10 text-green-600 dark:text-green-400',
-}
-
-const categoryColor: Record<string, string> = {
-  BUG: 'bg-red-500/10 text-red-600 dark:text-red-400',
-  FEATURE: 'bg-primary/10 text-primary',
-  GENERAL: 'bg-muted text-muted-foreground',
+function getRelativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  return `${days}d ago`
 }
 
 export default async function DashboardPage() {
@@ -28,34 +25,30 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const metrics = await getDashboardMetrics(user.id).catch(() => ({
-    tasksToday: 0, approvalRate: 0, activeWorkspaces: 0, pendingTasks: 0,
-  }))
+  const [metrics, recentTasks, setup] = await Promise.all([
+    getDashboardMetrics(user.id).catch(() => ({
+      tasksToday: 0, approvalRate: 0, pendingCount: 0, totalTasks: 0,
+    })),
+    getRecentTasks(user.id).catch(() => []),
+    getSetupStatus(user.id).catch(() => ({
+      hasWorkspace: false, hasRoles: false, hasLinkedMembers: false, hasCategories: false,
+    })),
+  ])
 
-  const workspaces = await listWorkspacesForUser(user.id).catch(() => [])
-  const workspaceIds = workspaces.map((w) => w.id)
-  const roles = await listRolesForUser(user.id).catch(() => [])
-  
-  // Check if setup complete
-  const hasWorkspace = workspaces.length > 0
-  const hasRole = roles.length > 0
-  const isSetupComplete = hasWorkspace && hasRole
+  const isFullySetUp = setup.hasWorkspace && setup.hasRoles && setup.hasCategories && setup.hasLinkedMembers
 
-  const db = getServiceClient()
+  const steps = [
+    { done: setup.hasWorkspace, label: 'Connect a Slack workspace', href: '/dashboard/workspaces' },
+    { done: setup.hasCategories && setup.hasRoles, label: 'Create categories and roles', href: '/dashboard/settings' },
+    { done: setup.hasLinkedMembers, label: 'Link team members via Telegram', href: undefined },
+  ]
 
-  // Recent tasks (Isolated to user's workspaces)
-  const { data: tasks } = workspaceIds.length > 0
-    ? await db
-        .from('tasks')
-        .select(`
-          id, original_text, channel, category, status, created_at,
-          workspace:workspaces!workspace_id (id, name),
-          role:roles!role_id (id, name, type)
-        `)
-        .in('workspace_id', workspaceIds)
-        .order('created_at', { ascending: false })
-        .limit(10)
-    : { data: [] }
+  const metricCards = [
+    { label: 'Tasks Today', value: metrics.tasksToday, icon: ListChecks },
+    { label: 'Approval Rate', value: `${metrics.approvalRate}%`, icon: TrendingUp },
+    { label: 'Pending Review', value: metrics.pendingCount, icon: Clock },
+    { label: 'Total Tasks', value: metrics.totalTasks, icon: Hash },
+  ]
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
@@ -65,114 +58,107 @@ export default async function DashboardPage() {
         <p className="text-muted-foreground text-sm mt-1">Your pipeline at a glance</p>
       </div>
 
-      {!isSetupComplete && (
-        <div className="bg-primary/5 border border-primary/20 p-6 rounded-xl">
-          <h2 className="text-lg font-semibold text-primary mb-2">Welcome to SlackFlow! Let's get you set up.</h2>
-          <p className="text-sm text-muted-foreground mb-6">Complete these steps to start routing your Slack messages automatically.</p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-card border border-border p-4 rounded-lg relative">
-              <div className="absolute top-4 right-4 text-xs font-bold text-muted-foreground">Step 1</div>
-              <h3 className="font-medium text-sm mb-1 text-foreground">Get Telegram ID</h3>
-              <p className="text-xs text-muted-foreground mb-3">Open Telegram and send <code className="bg-muted px-1 rounded">/start</code> to <strong>@userinfobot</strong> to get your numerical chat ID.</p>
-              <a href="https://t.me/userinfobot" target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline">Open @userinfobot →</a>
+      {/* Setup Checklist */}
+      {!isFullySetUp && (
+        <Card>
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg text-primary">Get Started with SlackFlow</CardTitle>
+            <p className="text-sm text-muted-foreground">Complete these steps to start routing your Slack messages automatically.</p>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {steps.map((step, i) => (
+                <div key={i} className="flex items-center gap-3">
+                  {step.done ? (
+                    <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
+                  ) : (
+                    <Circle className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                  )}
+                  <span className={`text-sm ${step.done ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
+                    Step {i + 1}: {step.label}
+                  </span>
+                  {!step.done && step.href && (
+                    <Link href={step.href} className="text-xs text-primary hover:underline ml-auto">
+                      Go &rarr;
+                    </Link>
+                  )}
+                </div>
+              ))}
             </div>
-
-            <div className={`bg-card border border-border p-4 rounded-lg relative ${hasRole ? 'opacity-50 grayscale' : ''}`}>
-              <div className="absolute top-4 right-4 text-xs font-bold text-muted-foreground">Step 2</div>
-              <h3 className="font-medium text-sm mb-1 text-foreground flex items-center gap-2">
-                Create a Role {hasRole && '✅'}
-              </h3>
-              <p className="text-xs text-muted-foreground mb-3">Define roles (e.g., Builder, Support) and attach Telegram Chat IDs so the system knows where to send alerts.</p>
-              <Link href="/dashboard/settings" className="px-3 py-1.5 bg-primary text-primary-foreground text-xs rounded-md hover:bg-primary/90 transition-colors inline-block">
-                Go to Settings
-              </Link>
-            </div>
-
-            <div className={`bg-card border border-border p-4 rounded-lg relative ${hasWorkspace ? 'opacity-50 grayscale' : ''}`}>
-              <div className="absolute top-4 right-4 text-xs font-bold text-muted-foreground">Step 3</div>
-              <h3 className="font-medium text-sm mb-1 text-foreground flex items-center gap-2">
-                Connect Slack {hasWorkspace && '✅'}
-              </h3>
-              <p className="text-xs text-muted-foreground mb-3">
-                Install the app. <strong>Crucial final step:</strong> Go to your Slack workspace and type <code className="bg-foreground/10 px-1 rounded">/invite @YourBotName</code> in any channels you want SlackFlow to monitor!
-              </p>
-              <a href="/api/slack/install" className="px-3 py-1.5 bg-primary text-primary-foreground text-xs rounded-md hover:bg-primary/90 transition-colors inline-flex items-center gap-1.5">
-                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.528 2.528 0 0 1 2.523-2.523 2.528 2.528 0 0 1 2.523 2.523v6.313a2.528 2.528 0 0 1-2.523 2.522 2.528 2.528 0 0 1-2.523-2.522v-6.313zM8.835 5.042a2.528 2.528 0 0 1-2.523-2.52A2.528 2.528 0 0 1 8.835 0a2.527 2.527 0 0 1 2.52 2.522v2.52h-2.52zm0 1.271a2.528 2.528 0 0 1 2.523 2.523 2.528 2.528 0 0 1-2.523 2.523h-6.313A2.528 2.528 0 0 1 0 8.835a2.528 2.528 0 0 1 2.522-2.523h6.313zm10.122 2.522a2.528 2.528 0 0 1 2.52-2.523A2.528 2.528 0 0 1 24 8.835a2.527 2.527 0 0 1-2.522 2.52h-2.52v-2.52zm-1.271 0a2.528 2.528 0 0 1-2.523 2.523 2.528 2.528 0 0 1-2.523-2.523V2.522A2.528 2.528 0 0 1 17.686 0a2.528 2.528 0 0 1 2.523 2.522v6.313zM15.165 18.958a2.528 2.528 0 0 1 2.523 2.52 2.528 2.528 0 0 1-2.523 2.522 2.527 2.527 0 0 1-2.52-2.522v-2.52h2.52zm0-1.271a2.528 2.528 0 0 1-2.523-2.523 2.528 2.528 0 0 1 2.523-2.523h6.313A2.528 2.528 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/></svg>
-                Connect Slack
-              </a>
-            </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Metric cards */}
+      {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {[
-          { label: 'Tasks today', value: metrics.tasksToday, icon: ListChecks },
-          { label: 'Approval rate', value: `${metrics.approvalRate}%`, icon: TrendingUp },
-          { label: 'Active workspaces', value: metrics.activeWorkspaces, icon: Building2 },
-          { label: 'Pending review', value: metrics.pendingTasks, icon: Clock },
-        ].map((m) => (
-          <div key={m.label} className="bg-card border border-border rounded-xl p-5">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-muted-foreground">{m.label}</span>
-              <div className="w-8 h-8 bg-primary/10 text-primary rounded-lg flex items-center justify-center">
-                <m.icon className="w-4 h-4" />
+        {metricCards.map((m) => (
+          <Card key={m.label}>
+            <CardContent className="pt-6">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm text-muted-foreground">{m.label}</span>
+                <div className="w-8 h-8 bg-primary/10 text-primary rounded-lg flex items-center justify-center">
+                  <m.icon className="w-4 h-4" />
+                </div>
               </div>
-            </div>
-            <div className="text-3xl font-bold tabular-nums">{m.value}</div>
-          </div>
+              <div className="text-3xl font-bold tabular-nums">{m.value}</div>
+            </CardContent>
+          </Card>
         ))}
       </div>
 
-      {/* Recent tasks */}
-      <div className="bg-card border border-border rounded-xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 className="font-semibold text-sm">Recent tasks</h2>
+      {/* Recent Tasks */}
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0 pb-4">
+          <CardTitle className="text-sm font-semibold">Recent Tasks</CardTitle>
           <Link href="/dashboard/tasks" className="text-xs text-primary hover:underline flex items-center gap-1">
             View all <ArrowRight className="w-3 h-3" />
           </Link>
-        </div>
-        {!tasks || tasks.length === 0 ? (
-          <div className="px-5 py-12 text-center text-sm text-muted-foreground">
-            No tasks yet. Connect a Slack workspace and send a message to get started.
-          </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {tasks.map((task: any) => (
-              <div key={task.id} className="px-4 md:px-5 py-3.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 hover:bg-muted/30 transition-colors">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm truncate">{task.original_text}</p>
-                  <p className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
-                    <span className="font-medium text-foreground">{task.workspace?.name || 'Unknown'}</span>
-                    <span>#{task.channel}</span>
-                    <span>· {new Date(task.created_at).toLocaleString()}</span>
-                  </p>
-                </div>
-                <div className="flex flex-col items-start sm:items-end gap-1.5 flex-shrink-0">
-                  <div className="flex items-center gap-2">
-                    {task.category && (
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${categoryColor[task.category] ?? ''}`}>
-                        {task.category}
-                      </span>
-                    )}
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${statusColor[task.status] ?? ''}`}>
-                      {task.status.replace('_', ' ')}
-                    </span>
-                  </div>
-                  {task.role && (
-                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
-                      {task.role.name} ({task.role.type})
-                    </span>
+        </CardHeader>
+        <CardContent className="p-0">
+          {recentTasks.length === 0 ? (
+            <div className="px-6 py-12 text-center text-sm text-muted-foreground">
+              No tasks yet. Connect a Slack workspace and send a message to get started.
+            </div>
+          ) : (
+            <div className="divide-y divide-border">
+              {recentTasks.map((task: any) => (
+                <div key={task.id} className="px-6 py-3.5 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3 hover:bg-muted/30 transition-colors">
+                  {/* Workspace badge */}
+                  <span className="flex items-center gap-1.5 text-xs font-medium flex-shrink-0">
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ backgroundColor: task.workspaces?.accent_color || '#3B82F6' }}
+                    />
+                    {task.workspaces?.name || 'Unknown'}
+                  </span>
+                  {/* Channel */}
+                  <span className="text-xs text-muted-foreground flex-shrink-0">#{task.channel}</span>
+                  {/* Sender */}
+                  <span className="text-xs text-muted-foreground flex-shrink-0">{task.sender_name || 'Unknown'}</span>
+                  {/* Category */}
+                  {task.category && (
+                    <CategoryBadge
+                      name={task.category}
+                      emoji={task.category_emoji}
+                      color={task.category_color}
+                    />
                   )}
+                  {/* Role */}
+                  {task.roles?.name && (
+                    <span className="text-xs font-medium flex-shrink-0">{task.roles.name}</span>
+                  )}
+                  {/* Status */}
+                  <StatusPill status={task.status} />
+                  {/* Time */}
+                  <span className="text-xs text-muted-foreground ml-auto flex-shrink-0">
+                    {getRelativeTime(task.created_at)}
+                  </span>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
