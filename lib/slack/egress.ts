@@ -10,6 +10,13 @@ export async function postReplyToSlack(taskId: string) {
 
   // Look up the task from DB
   const task = await getTaskById(taskId)
+
+  // Guard: don't send if already sent (prevents duplicate messages from Telegram retries)
+  if (task.status === 'sent') {
+    log.info('Task already sent, skipping duplicate')
+    return
+  }
+
   const workspace = await getWorkspaceById(task.workspace_id)
   const token = decrypt(workspace.access_token_enc, workspace.access_token_iv)
   const client = new WebClient(token)

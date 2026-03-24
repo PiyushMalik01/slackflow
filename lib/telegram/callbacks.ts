@@ -14,6 +14,12 @@ export async function handleApprove(taskId: string, chatId: number, messageId: n
   const { data: task } = await supabase.from('tasks').select('*').eq('id', taskId).single()
   if (!task) return
 
+  // Guard: already processed
+  if (task.status === 'sent') {
+    await bot.editMessageText('Already sent to Slack.', { chat_id: chatId, message_id: messageId }).catch(() => {})
+    return
+  }
+
   const textToSend = task.edited_text || task.draft_text
   if (!textToSend) {
     await bot.sendMessage(chatId, 'No draft available to approve.')
@@ -119,6 +125,15 @@ export async function handleEditConfirm(taskId: string, chatId: number, messageI
   }
 
   const supabase = getServiceClient()
+
+  // Guard: already processed
+  const { data: existingTask } = await supabase.from('tasks').select('status').eq('id', taskId).maybeSingle()
+  if (existingTask?.status === 'sent') {
+    await deleteSession(session.id)
+    await bot.editMessageText('Already sent to Slack.', { chat_id: chatId, message_id: messageId }).catch(() => {})
+    return
+  }
+
   await supabase.from('tasks').update({ edited_text: session.draft_text, status: 'edited' }).eq('id', taskId)
   await postReplyToSlack(taskId)
   await deleteSession(session.id)

@@ -655,13 +655,16 @@ function CategoryForm({
                   <span className="text-muted-foreground text-xs">{emoji ? 'Change emoji' : 'Pick an emoji'}</span>
                 </button>
                 {showEmojiPicker && (
-                  <div className="absolute z-50 top-full mt-1 right-0">
-                    <EmojiPickerDropdown
-                      onSelect={(emojiStr: string) => {
-                        setEmoji(emojiStr)
-                        setShowEmojiPicker(false)
-                      }}
-                    />
+                  <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowEmojiPicker(false)} />
+                    <div className="relative z-10">
+                      <EmojiPickerDropdown
+                        onSelect={(emojiStr: string) => {
+                          setEmoji(emojiStr)
+                          setShowEmojiPicker(false)
+                        }}
+                      />
+                    </div>
                   </div>
                 )}
               </div>
