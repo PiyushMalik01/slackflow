@@ -1,11 +1,11 @@
 import { createAuthClient, getServiceClient } from '@/lib/db/client'
 import { listWorkspacesForUser, getCategories } from '@/lib/db/queries'
 import { Card, CardContent } from '@/components/ui/card'
-import { TaskCard } from '@/components/task-card'
 import { ListChecks } from 'lucide-react'
 import Link from 'next/link'
 import type { TaskStatus } from '@/lib/db/types'
 import { TaskFilters } from './task-filters'
+import { TaskListClient } from './task-list-client'
 
 export const metadata = { title: 'Tasks' }
 
@@ -134,11 +134,15 @@ export default async function TasksPage({
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-2">
-          {mappedTasks.map((task) => (
-            <TaskCard key={task.id} task={task} />
-          ))}
-        </div>
+        <TaskListClient
+          tasks={mappedTasks}
+          categories={(categories || []).map(c => ({
+            id: c.id,
+            name: c.name,
+            emoji: c.emoji || '',
+            color: c.color || '#6B7280',
+          }))}
+        />
       )}
 
       {/* Pagination */}

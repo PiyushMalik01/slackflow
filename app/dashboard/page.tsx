@@ -158,6 +158,13 @@ export default async function DashboardPage() {
                   <span className="text-xs text-muted-foreground ml-auto flex-shrink-0">
                     {getRelativeTime(task.created_at)}
                   </span>
+                  {/* Manage link */}
+                  <Link
+                    href={`/dashboard/tasks?search=${encodeURIComponent(task.original_text?.substring(0, 40) || '')}`}
+                    className="text-xs text-primary hover:underline flex-shrink-0"
+                  >
+                    Manage
+                  </Link>
                 </div>
                 )
               })}
