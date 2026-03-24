@@ -1,71 +1,119 @@
-import { openai, AI_MODEL } from './client'
-import { getPromptForCategory } from './prompts'
-import { parseAiOutput } from './parser'
-import { getWorkspaceById, updateTaskStatus, logActivity } from '@/lib/db/queries'
-import { createCorrelatedLogger } from '@/lib/utils/logger'
+import { classifyAndDraft } from '@/lib/ai/classifier'
+import { getCategories, getCategoryByName } from '@/lib/db/queries'
+import { getServiceClient } from '@/lib/db/client'
+import { logger } from '@/lib/utils/logger'
 
-export async function runAiDraftPipeline(task: {
-  id: string
-  workspace_id: string
-  original_text: string
+interface PipelineInput {
+  taskId: string
+  workspaceId: string
+  ownerId: string
+  message: string
+  senderName: string
+  channel: string
+  threadContext?: string | null
+}
+
+interface PipelineResult {
   category: string
-}): Promise<{ draft: string; tokensUsed: number; latencyMs: number }> {
-  const log = createCorrelatedLogger(task.id)
+  categoryId: string | null
+  draft: string | null
+  confidence: number
+  promptVersion: string
+}
+
+export async function runAiPipeline(input: PipelineInput): Promise<PipelineResult> {
+  const log = logger.child({ taskId: input.taskId })
+  const supabase = getServiceClient()
 
   try {
-    // Stage 1: Collect — get workspace context by UUID
-    const workspace = await getWorkspaceById(task.workspace_id)
-    log.info({ stage: 'collect', workspace: workspace.name }, 'Context loaded')
+    // Load categories for the workspace owner
+    const categories = await getCategories(input.ownerId)
+    if (categories.length === 0) {
+      log.warn('No categories found, using fallback')
+      return {
+        category: 'General',
+        categoryId: null,
+        draft: null,
+        confidence: 0,
+        promptVersion: 'fallback-no-categories',
+      }
+    }
 
-    // Stage 2: Build prompt
-    const messages = getPromptForCategory(task.category, task.original_text, workspace.name)
-    log.info({ stage: 'prompt', category: task.category }, 'Prompt built')
+    // Combined classify + draft
+    const result = await classifyAndDraft(
+      input.message,
+      input.senderName,
+      input.channel,
+      categories,
+      input.threadContext,
+    )
 
-    // Stage 3: Generate
-    const startMs = Date.now()
-    const completion = await openai.chat.completions.create({
-      model: AI_MODEL,
-      messages,
-      max_tokens: 500,
-      temperature: 0.7,
-    })
-    const latencyMs = Date.now() - startMs
-    const rawOutput = completion.choices[0]?.message?.content ?? ''
-    const tokensUsed = completion.usage?.total_tokens ?? 0
-    log.info({ stage: 'generate', latencyMs, tokensUsed }, 'AI response received')
+    // Resolve category ID
+    const matchedCategory = categories.find(
+      (c) => c.name.toLowerCase() === result.category.toLowerCase()
+    )
+    const categoryId = matchedCategory?.id || null
 
-    // Stage 4: Parse
-    const parsed = parseAiOutput(rawOutput)
-    log.info({ stage: 'parse', type: parsed.type }, 'Output parsed')
-
-    // Stage 5: Persist
-    await updateTaskStatus(task.id, 'draft_ready', {
-      draft_text: parsed.draft,
-      ai_model: AI_MODEL,
-      ai_tokens_used: tokensUsed,
+    // Update task with results
+    await supabase.from('tasks').update({
+      category: result.category,
+      category_id: categoryId,
+      draft_text: result.draft,
+      ai_model: process.env.AI_MODEL || 'gpt-4o-mini',
+      ai_prompt_version: result.promptVersion,
       draft_generated_at: new Date().toISOString(),
-    })
+      status: 'draft_ready',
+    }).eq('id', input.taskId)
 
-    await logActivity({
-      task_id: task.id,
-      workspace_id: task.workspace_id,
-      actor: 'system',
+    // Log activity
+    await supabase.from('activity_log').insert({
+      workspace_id: input.workspaceId,
+      task_id: input.taskId,
+      actor: 'ai',
       action: 'draft_generated',
-      details: { model: AI_MODEL, tokens: tokensUsed, latencyMs, type: parsed.type },
+      details: {
+        category: result.category,
+        confidence: result.confidence,
+        model: process.env.AI_MODEL || 'gpt-4o-mini',
+      },
     })
 
-    log.info({ stage: 'persist' }, 'Task updated with draft')
-    return { draft: parsed.draft, tokensUsed, latencyMs }
-  } catch (error) {
-    log.error({ error, stage: 'pipeline' }, 'AI pipeline failed')
-    await updateTaskStatus(task.id, 'failed')
-    await logActivity({
-      task_id: task.id,
-      workspace_id: task.workspace_id,
-      actor: 'system',
+    log.info({ category: result.category, confidence: result.confidence }, 'AI pipeline complete')
+
+    return {
+      category: result.category,
+      categoryId,
+      draft: result.draft,
+      confidence: result.confidence,
+      promptVersion: result.promptVersion,
+    }
+  } catch (err) {
+    log.error({ err }, 'AI pipeline failed, using fallback')
+
+    // Fallback: General category, no draft
+    const generalCategory = await getCategoryByName(input.ownerId, 'General')
+
+    await supabase.from('tasks').update({
+      category: 'General',
+      category_id: generalCategory?.id || null,
+      ai_prompt_version: 'failed',
+      status: 'pending',
+    }).eq('id', input.taskId)
+
+    await supabase.from('activity_log').insert({
+      workspace_id: input.workspaceId,
+      task_id: input.taskId,
+      actor: 'ai',
       action: 'draft_failed',
-      details: { error: String(error) },
+      details: { error: err instanceof Error ? err.message : 'Unknown error' },
     })
-    throw error
+
+    return {
+      category: 'General',
+      categoryId: generalCategory?.id || null,
+      draft: null,
+      confidence: 0,
+      promptVersion: 'failed',
+    }
   }
 }
