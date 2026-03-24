@@ -126,5 +126,9 @@
   }
   html {
     @apply font-sans;
+    scroll-behavior: smooth;
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 }

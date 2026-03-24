@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Loader2 } from 'lucide-react'
+import { toast } from 'sonner'
 import { createBrowserClient } from '@/lib/db/browser-client'
 import { BRAND_LOGO_SIZES, PlatformLogo } from '@/components/platform-logo'
 
@@ -13,7 +14,6 @@ function LoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
   const supabase = createBrowserClient()
 
   const nextPath = searchParams.get('next') ?? '/dashboard'
@@ -29,11 +29,10 @@ function LoginForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-    setError('')
 
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) {
-      setError(error.message)
+      toast.error(error.message)
       setLoading(false)
     } else {
       router.replace(nextPath)
@@ -41,18 +40,18 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-muted/40 via-background to-muted/20 px-4">
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
             <PlatformLogo imageSize={BRAND_LOGO_SIZES.auth} textClassName="font-bold text-xl" priority />
           </Link>
-          <h1 className="text-2xl font-bold">Welcome back</h1>
-          <p className="text-sm text-muted-foreground mt-1">Sign in to your account</p>
+          <h1 className="text-2xl font-bold tracking-tight">Sign in to your account</h1>
+          <p className="text-sm text-muted-foreground mt-1.5">Welcome back — enter your credentials below</p>
         </div>
 
-        {/* Form */}
+        {/* Card */}
         <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -67,7 +66,7 @@ function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full px-3 py-2.5 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
+                className="w-full px-3 py-2.5 rounded-md border border-input bg-background text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-shadow"
               />
             </div>
 
@@ -83,18 +82,14 @@ function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full px-3 py-2.5 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
+                className="w-full px-3 py-2.5 rounded-md border border-input bg-background text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-shadow"
               />
             </div>
-
-            {error && (
-              <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">{error}</p>
-            )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed mt-2"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               Sign in
@@ -106,6 +101,12 @@ function LoginForm() {
           Don&apos;t have an account?{' '}
           <Link href="/signup" className="text-primary hover:underline font-medium">
             Create one
+          </Link>
+        </p>
+
+        <p className="text-center text-sm text-muted-foreground mt-3">
+          <Link href="/" className="hover:underline">
+            &larr; Back to home
           </Link>
         </p>
       </div>

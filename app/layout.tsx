@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
 const inter = Inter({
@@ -9,12 +10,8 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: {
-    default: 'SlackFlow — AI-powered Slack request routing',
-    template: '%s | SlackFlow',
-  },
-  description:
-    'Automatically route client Slack messages to the right team member with AI-drafted replies and Telegram approval.',
+  title: 'SlackFlow - AI-Powered Slack Task Routing',
+  description: 'Route Slack messages to the right person with AI classification and Telegram notifications.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -22,6 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${inter.variable} h-full`} suppressHydrationWarning>
       <body className="h-full antialiased font-sans bg-background text-foreground">
         {children}
+        <Toaster richColors position="top-right" />
       </body>
     </html>
   )

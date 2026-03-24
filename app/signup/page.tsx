@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Loader2, CheckCircle } from 'lucide-react'
+import { toast } from 'sonner'
 import { createBrowserClient } from '@/lib/db/browser-client'
 import { BRAND_LOGO_SIZES, PlatformLogo } from '@/components/platform-logo'
 
@@ -12,13 +13,11 @@ export default function SignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
   const [state, setState] = useState<'idle' | 'confirm_email' | 'done'>('idle')
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
-    setError('')
 
     const supabase = createBrowserClient()
 
@@ -29,7 +28,7 @@ export default function SignupPage() {
     })
 
     if (signUpError) {
-      setError(signUpError.message)
+      toast.error(signUpError.message)
       setLoading(false)
       return
     }
@@ -47,7 +46,7 @@ export default function SignupPage() {
 
   if (state === 'confirm_email') {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-muted/40 via-background to-muted/20 px-4">
         <div className="w-full max-w-sm text-center">
           <div className="w-14 h-14 bg-green-500/10 text-green-500 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle className="w-7 h-7" />
@@ -67,16 +66,18 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-muted/30 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-muted/40 via-background to-muted/20 px-4">
       <div className="w-full max-w-sm">
+        {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
             <PlatformLogo imageSize={BRAND_LOGO_SIZES.auth} textClassName="font-bold text-xl" priority />
           </Link>
-          <h1 className="text-2xl font-bold">Create your account</h1>
-          <p className="text-sm text-muted-foreground mt-1">Start routing Slack messages smarter</p>
+          <h1 className="text-2xl font-bold tracking-tight">Create your account</h1>
+          <p className="text-sm text-muted-foreground mt-1.5">Start routing Slack messages smarter</p>
         </div>
 
+        {/* Card */}
         <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -85,10 +86,11 @@ export default function SignupPage() {
                 id="email"
                 type="email"
                 required
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@example.com"
-                className="w-full px-3 py-2.5 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
+                className="w-full px-3 py-2.5 rounded-md border border-input bg-background text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-shadow"
               />
             </div>
             <div>
@@ -98,19 +100,18 @@ export default function SignupPage() {
                 type="password"
                 required
                 minLength={8}
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Min. 8 characters"
-                className="w-full px-3 py-2.5 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
+                className="w-full px-3 py-2.5 rounded-md border border-input bg-background text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-shadow"
               />
+              <p className="text-xs text-muted-foreground mt-1">Must be at least 8 characters</p>
             </div>
-            {error && (
-              <p className="text-sm text-destructive bg-destructive/10 px-3 py-2 rounded-md">{error}</p>
-            )}
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-60"
+              className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2.5 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-60 disabled:cursor-not-allowed mt-2"
             >
               {loading && <Loader2 className="w-4 h-4 animate-spin" />}
               Create account
@@ -121,6 +122,12 @@ export default function SignupPage() {
         <p className="text-center text-sm text-muted-foreground mt-6">
           Already have an account?{' '}
           <Link href="/login" className="text-primary hover:underline font-medium">Sign in</Link>
+        </p>
+
+        <p className="text-center text-sm text-muted-foreground mt-3">
+          <Link href="/" className="hover:underline">
+            &larr; Back to home
+          </Link>
         </p>
       </div>
     </div>
