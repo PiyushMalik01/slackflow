@@ -94,7 +94,9 @@ export default async function DashboardPage() {
               <h3 className="font-medium text-sm mb-1 text-foreground flex items-center gap-2">
                 Connect Slack {hasWorkspace && '✅'}
               </h3>
-              <p className="text-xs text-muted-foreground mb-3">Install the Slack app to your workspace. Once connected, map your new Roles to event categories in Settings.</p>
+              <p className="text-xs text-muted-foreground mb-3">
+                Install the app. <strong>Crucial final step:</strong> Go to your Slack workspace and type <code className="bg-foreground/10 px-1 rounded">/invite @YourBotName</code> in any channels you want SlackFlow to monitor!
+              </p>
               <a href="/api/slack/install" className="px-3 py-1.5 bg-primary text-primary-foreground text-xs rounded-md hover:bg-primary/90 transition-colors inline-flex items-center gap-1.5">
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor"><path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zm1.271 0a2.528 2.528 0 0 1 2.523-2.523 2.528 2.528 0 0 1 2.523 2.523v6.313a2.528 2.528 0 0 1-2.523 2.522 2.528 2.528 0 0 1-2.523-2.522v-6.313zM8.835 5.042a2.528 2.528 0 0 1-2.523-2.52A2.528 2.528 0 0 1 8.835 0a2.527 2.527 0 0 1 2.52 2.522v2.52h-2.52zm0 1.271a2.528 2.528 0 0 1 2.523 2.523 2.528 2.528 0 0 1-2.523 2.523h-6.313A2.528 2.528 0 0 1 0 8.835a2.528 2.528 0 0 1 2.522-2.523h6.313zm10.122 2.522a2.528 2.528 0 0 1 2.52-2.523A2.528 2.528 0 0 1 24 8.835a2.527 2.527 0 0 1-2.522 2.52h-2.52v-2.52zm-1.271 0a2.528 2.528 0 0 1-2.523 2.523 2.528 2.528 0 0 1-2.523-2.523V2.522A2.528 2.528 0 0 1 17.686 0a2.528 2.528 0 0 1 2.523 2.522v6.313zM15.165 18.958a2.528 2.528 0 0 1 2.523 2.52 2.528 2.528 0 0 1-2.523 2.522 2.527 2.527 0 0 1-2.52-2.522v-2.52h2.52zm0-1.271a2.528 2.528 0 0 1-2.523-2.523 2.528 2.528 0 0 1 2.523-2.523h6.313A2.528 2.528 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.523h-6.313z"/></svg>
                 Connect Slack

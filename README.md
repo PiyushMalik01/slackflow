@@ -76,6 +76,11 @@ Once your Vercel URL is live, update your webhooks:
 3. **Telegram:** Register your Vercel webhook by opening this URL in your browser:
    `https://api.telegram.org/bot<YOUR_TELEGRAM_BOT_TOKEN>/setWebhook?url=https://YOUR_VERCEL_DOMAIN/api/telegram/webhook`
 
+### Using the App (Crucial Step!)
+For SlackFlow to actually read your messages, **you must invite the bot to your channels**. 
+In your Slack workspace, go to the channel you want to monitor and type:
+`/invite @YourBotName`
+
 ---
 
 ## Architecture Stack
