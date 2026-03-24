@@ -699,6 +699,7 @@ function TemplateForm({
   const [content, setContent] = useState(initial?.content || '')
   const [categoryId, setCategoryId] = useState<string>(initial?.category_id || '')
   const [saving, setSaving] = useState(false)
+  const [generating, setGenerating] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -708,6 +709,33 @@ function TemplateForm({
       await onSave({ name: name.trim(), content: content.trim(), category_id: categoryId || null })
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleGenerateContent() {
+    if (!name.trim()) { toast.error('Enter a template name first'); return }
+    setGenerating(true)
+    try {
+      const category = categories.find(c => c.id === categoryId)
+      const res = await fetch('/api/templates/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          category_name: category?.name || null,
+        }),
+      })
+      const data = await res.json()
+      if (data.content) {
+        setContent(data.content)
+        toast.success('Template generated!')
+      } else {
+        toast.error('Failed to generate')
+      }
+    } catch {
+      toast.error('Failed to generate template')
+    } finally {
+      setGenerating(false)
     }
   }
 
@@ -734,6 +762,17 @@ function TemplateForm({
               required
               className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm resize-none focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-2 text-xs"
+              onClick={handleGenerateContent}
+              disabled={!name.trim() || generating}
+            >
+              {generating ? <Loader2 className="size-3 animate-spin mr-1" /> : <Brain className="size-3 mr-1" />}
+              Generate with AI
+            </Button>
           </div>
           <div>
             <label className="block text-xs font-medium mb-1.5">Category (optional)</label>
