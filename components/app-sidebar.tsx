@@ -2,75 +2,121 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
+import { useState } from 'react'
 import {
   LayoutDashboard,
+  CheckSquare,
   Building2,
-  ListChecks,
+  Clock,
   Settings,
-  Activity,
   LogOut,
-  ChevronRight,
+  Menu,
 } from 'lucide-react'
 import { createBrowserClient } from '@/lib/db/browser-client'
 import { BRAND_LOGO_SIZES, PlatformLogo } from '@/components/platform-logo'
+import { WorkspaceSwitcher } from '@/components/workspace-switcher'
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetTitle,
+} from '@/components/ui/sheet'
+import { Button } from '@/components/ui/button'
 
 const navItems = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
+  { href: '/dashboard/tasks', label: 'Tasks', icon: CheckSquare },
   { href: '/dashboard/workspaces', label: 'Workspaces', icon: Building2 },
-  { href: '/dashboard/tasks', label: 'Tasks', icon: ListChecks },
-  { href: '/dashboard/activity', label: 'Activity', icon: Activity },
+  { href: '/dashboard/activity', label: 'Activity', icon: Clock },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
 ]
 
-export function AppSidebar() {
+function isNavActive(pathname: string, href: string) {
+  if (href === '/dashboard') return pathname === '/dashboard'
+  return pathname.startsWith(href)
+}
+
+function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname()
   const router = useRouter()
   const supabase = createBrowserClient()
 
   async function handleSignOut() {
     await supabase.auth.signOut()
-    router.replace('/login')
+    router.replace('/')
   }
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-50 w-60 bg-sidebar border-r border-sidebar-border flex flex-col">
+    <div className="flex h-full flex-col">
       {/* Logo */}
-      <div className="h-14 flex items-center gap-2.5 px-4 border-b border-sidebar-border">
+      <div className="flex h-14 items-center gap-2.5 border-b px-4">
         <PlatformLogo imageSize={BRAND_LOGO_SIZES.sidebar} textClassName="text-sm" />
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
+      {/* Workspace switcher */}
+      <div className="border-b px-3 py-3">
+        <WorkspaceSwitcher className="text-xs" />
+      </div>
+
+      {/* Navigation */}
+      <nav className="flex-1 space-y-0.5 overflow-y-auto p-3">
         {navItems.map((item) => {
-          const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
+          const active = isNavActive(pathname, item.href)
           return (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors group ${
-                isActive
-                  ? 'bg-sidebar-primary text-sidebar-primary-foreground font-medium'
-                  : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+              onClick={onNavigate}
+              className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors ${
+                active
+                  ? 'bg-primary/10 font-semibold text-primary'
+                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               }`}
             >
-              <item.icon className="w-4 h-4 flex-shrink-0" />
+              <item.icon className="h-4 w-4 flex-shrink-0" />
               {item.label}
-              {isActive && <ChevronRight className="w-3 h-3 ml-auto opacity-60" />}
             </Link>
           )
         })}
       </nav>
 
-      {/* User / Sign out */}
-      <div className="p-3 border-t border-sidebar-border">
+      {/* Sign out */}
+      <div className="border-t p-3">
         <button
           onClick={handleSignOut}
-          className="flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors w-full"
+          className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
         >
-          <LogOut className="w-4 h-4" />
+          <LogOut className="h-4 w-4" />
           Sign out
         </button>
       </div>
+    </div>
+  )
+}
+
+export function AppSidebar() {
+  return (
+    <aside className="fixed inset-y-0 left-0 z-50 hidden w-64 border-r bg-background md:flex md:flex-col">
+      <SidebarContent />
     </aside>
+  )
+}
+
+export function MobileSidebarTrigger() {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button variant="ghost" size="icon" className="md:hidden">
+          <Menu className="h-5 w-5" />
+          <span className="sr-only">Open sidebar</span>
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="left" className="w-64 p-0" showCloseButton={false}>
+        <SheetTitle className="sr-only">Navigation</SheetTitle>
+        <SidebarContent onNavigate={() => setOpen(false)} />
+      </SheetContent>
+    </Sheet>
   )
 }
