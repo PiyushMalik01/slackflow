@@ -70,12 +70,21 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     for (const channelId of added) {
       try {
         await slack.conversations.join({ channel: channelId })
+        // Post a welcome message in the channel
+        await slack.chat.postMessage({
+          channel: channelId,
+          text: '👋 SlackFlow is now monitoring this channel. Messages will be classified by AI and routed to the right team member.',
+        })
         logger.info({ channelId, workspaceId: id }, 'Bot joined channel')
       } catch (err: any) {
-        // If already in channel, that's fine. Log other errors.
-        if (err?.data?.error !== 'already_in_channel') {
+        if (err?.data?.error === 'already_in_channel') {
+          // Already in channel — just update monitoring, no error
+          logger.info({ channelId }, 'Bot already in channel, monitoring enabled')
+        } else if (err?.data?.error === 'missing_scope') {
+          joinErrors.push(`Missing permission — please re-authorize the Slack app with updated scopes`)
+        } else {
           logger.warn({ err: err?.data?.error, channelId }, 'Failed to join channel')
-          joinErrors.push(`#${channelId}: ${err?.data?.error || 'unknown error'}`)
+          joinErrors.push(`Failed to join channel: ${err?.data?.error || 'unknown error'}`)
         }
       }
     }
@@ -83,10 +92,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     // Leave un-monitored channels
     for (const channelId of removed) {
       try {
+        // Post a goodbye message before leaving
+        await slack.chat.postMessage({
+          channel: channelId,
+          text: '👋 SlackFlow has stopped monitoring this channel. Messages will no longer be routed.',
+        })
         await slack.conversations.leave({ channel: channelId })
         logger.info({ channelId, workspaceId: id }, 'Bot left channel')
       } catch (err: any) {
-        // If not in channel, that's fine
         if (err?.data?.error !== 'not_in_channel') {
           logger.warn({ err: err?.data?.error, channelId }, 'Failed to leave channel')
         }

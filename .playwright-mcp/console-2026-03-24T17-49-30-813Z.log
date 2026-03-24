@@ -1,0 +1,24 @@
+[     899ms] [WARNING] Image with src "/logo.png" has either width or height modified, but not the other. If you use CSS to change the size of your image, also include the styles 'width: "auto"' or 'height: "auto"' to maintain the aspect ratio. @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[    6026ms] [WARNING] Detected `scroll-behavior: smooth` on the `<html>` element. To disable smooth scrolling during route transitions, add `data-scroll-behavior="smooth"` to your <html> element. Learn more: https://nextjs.org/docs/messages/missing-data-scroll-behavior @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:2431
+[  186322ms] [ERROR] ./app/dashboard/page.tsx:163:16
+Expected '</', got ')'
+  161 |                   </span>
+  162 |                 </div>
+> 163 |               ))}
+      |                ^
+  164 |             </div>
+  165 |           )}
+  166 |         </CardContent>
+
+Parsing ecmascript source code failed @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:3272
+[  186434ms] [ERROR] ./app/dashboard/page.tsx:163:16
+Expected '</', got ')'
+  161 |                   </span>
+  162 |                 </div>
+> 163 |               ))}
+      |                ^
+  164 |             </div>
+  165 |           )}
+  166 |         </CardContent>
+
+Parsing ecmascript source code failed @ http://localhost:3000/_next/static/chunks/node_modules_next_dist_115brz8._.js:3272

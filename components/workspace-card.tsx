@@ -84,12 +84,16 @@ export function WorkspaceCard({ workspace }: { workspace: Workspace }) {
         body: JSON.stringify({ monitored_channels: monitoredIds }),
       })
       const data = await res.json()
-      if (data.errors?.length) {
-        toast.error(`Some channels had issues: ${data.errors.join(', ')}`)
-      } else if (isEnabling) {
-        toast.success(`Bot joined #${targetChannel?.name} and monitoring enabled`)
+      if (!res.ok || data.errors?.length) {
+        const errMsg = data.errors?.[0] || data.error || 'Failed to update channel'
+        toast.error(errMsg)
+        setChannels(channels) // revert
+        return
+      }
+      if (isEnabling) {
+        toast.success(`Bot joined #${targetChannel?.name} — now monitoring`)
       } else {
-        toast.success(`Bot left #${targetChannel?.name} and monitoring disabled`)
+        toast.success(`Bot left #${targetChannel?.name} — monitoring stopped`)
       }
       router.refresh()
     } catch {
