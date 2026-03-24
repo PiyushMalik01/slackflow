@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const parsed = setSchema.safeParse(body)
-    if (!parsed.success) return json400(parsed.error.errors[0]?.message || 'Invalid input')
+    if (!parsed.success) return json400(parsed.error.issues[0]?.message || 'Invalid input')
 
     const { workspace_id, category_id, role_id } = parsed.data
 

@@ -49,6 +49,9 @@ export async function GET(req: NextRequest) {
       access_token_iv: tokenIv,
       bot_user_id: data.bot_user_id ?? data.authed_user?.id ?? '',
       monitored_channels: [],
+      team_group_chat_id: null,
+      daily_digest_time: null,
+      accent_color: '#3B82F6',
     })
 
     logger.info({ teamId: data.team.id }, 'Workspace installed successfully')

@@ -41,13 +41,14 @@ export async function POST(req: NextRequest) {
     }
 
     const parsed = createSchema.safeParse(rawBody)
-    if (!parsed.success) return json400(parsed.error.errors[0]?.message || 'Invalid input')
+    if (!parsed.success) return json400(parsed.error.issues[0]?.message || 'Invalid input')
 
     const role = await upsertRole({
       owner_id: user.id,
       name: parsed.data.name,
       type: parsed.data.type || 'BUILDER',
       telegram_chat_id: parsed.data.telegram_chat_id || null,
+      status: 'pending_link',
     })
 
     // Idempotently seed default categories for this user
@@ -85,7 +86,7 @@ export async function PUT(req: NextRequest) {
   try {
     const body = await req.json()
     const parsed = updateSchema.safeParse(body)
-    if (!parsed.success) return json400(parsed.error.errors[0]?.message || 'Invalid input')
+    if (!parsed.success) return json400(parsed.error.issues[0]?.message || 'Invalid input')
 
     const { id, ...data } = parsed.data
     await updateRole(id, { ...data, telegram_chat_id: data.telegram_chat_id || null })

@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const parsed = createSchema.safeParse(body)
-    if (!parsed.success) return json400(parsed.error.errors[0]?.message || 'Invalid input')
+    if (!parsed.success) return json400(parsed.error.issues[0]?.message || 'Invalid input')
 
     const cat = await createCategory({ owner_id: user.id, ...parsed.data })
     return jsonOk(cat, 201)
@@ -65,7 +65,7 @@ export async function PUT(req: NextRequest) {
   try {
     const body = await req.json()
     const parsed = updateSchema.safeParse(body)
-    if (!parsed.success) return json400(parsed.error.errors[0]?.message || 'Invalid input')
+    if (!parsed.success) return json400(parsed.error.issues[0]?.message || 'Invalid input')
 
     const { id, ...data } = parsed.data
     await updateCategory(id, data)

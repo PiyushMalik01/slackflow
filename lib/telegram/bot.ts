@@ -6,11 +6,14 @@ if (!token && process.env.NODE_ENV === 'production') {
 }
 
 // Use webhook mode in production, polling can be enabled for testing
-export const bot = token
+const _bot = token
   ? new TelegramBot(token, { polling: false })
   : null
 
+// Non-null assertion: callers assume bot is configured. Throws at runtime if not.
+export const bot = _bot as TelegramBot
+
 export function getBot(): TelegramBot {
-  if (!bot) throw new Error('Telegram bot is not initialized (TELEGRAM_BOT_TOKEN missing)')
-  return bot
+  if (!_bot) throw new Error('Telegram bot is not initialized (TELEGRAM_BOT_TOKEN missing)')
+  return _bot
 }
