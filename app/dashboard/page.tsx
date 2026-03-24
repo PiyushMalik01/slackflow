@@ -166,11 +166,11 @@ export default async function DashboardPage() {
       {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {metricCards.map((m) => (
-          <Card key={m.label}>
+          <Card key={m.label} className="group hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm text-muted-foreground">{m.label}</span>
-                <div className="w-8 h-8 bg-primary/10 text-primary rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-primary/10 text-primary rounded-lg flex items-center justify-center group-hover:bg-primary/15 transition-colors duration-200">
                   <m.icon className="w-4 h-4" />
                 </div>
               </div>

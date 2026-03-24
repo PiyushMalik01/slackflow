@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createAuthClient } from '@/lib/db/client'
 import { AppSidebar, MobileSidebarTrigger } from '@/components/app-sidebar'
+import { RealtimeProvider } from '@/components/realtime-provider'
 import { Suspense } from 'react'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -18,9 +19,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <span className="text-sm font-semibold">SlackFlow</span>
         </header>
         <main className="p-4 md:p-6 lg:p-8">
-          <Suspense fallback={<div className="space-y-4"><div className="h-8 w-48 animate-pulse rounded bg-muted" /><div className="h-64 animate-pulse rounded bg-muted" /></div>}>
-            {children}
-          </Suspense>
+          <RealtimeProvider>
+            <Suspense fallback={<div className="space-y-4"><div className="h-8 w-48 animate-pulse rounded bg-muted" /><div className="h-64 animate-pulse rounded bg-muted" /></div>}>
+              {children}
+            </Suspense>
+          </RealtimeProvider>
         </main>
       </div>
     </div>
