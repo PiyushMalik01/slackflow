@@ -21,6 +21,8 @@ interface TaskListClientProps {
     channel: string
     sender_name: string | null
     created_at: string
+    workspace_id?: string
+    role_id?: string | null
     workspace_name?: string
     workspace_color?: string
     role_name?: string
@@ -28,9 +30,10 @@ interface TaskListClientProps {
     category_color?: string
   }[]
   categories: { id: string; name: string; emoji: string; color: string }[]
+  roles?: { id: string; name: string; type: string; status?: string }[]
 }
 
-export function TaskListClient({ tasks, categories }: TaskListClientProps) {
+export function TaskListClient({ tasks, categories, roles }: TaskListClientProps) {
   const router = useRouter()
   const [aiLoading, setAiLoading] = useState<string | null>(null)
   const [cleanNoiseDialogOpen, setCleanNoiseDialogOpen] = useState(false)
@@ -127,6 +130,7 @@ export function TaskListClient({ tasks, categories }: TaskListClientProps) {
             key={task.id}
             task={task}
             categories={categories}
+            roles={roles}
             onTaskUpdated={handleTaskUpdated}
           />
         ))}

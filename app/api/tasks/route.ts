@@ -9,6 +9,7 @@ const updateSchema = z.object({
   category_id: z.string().uuid().optional(),
   category: z.string().optional(),
   status: z.enum(['pending', 'draft_ready', 'approved', 'edited', 'dismissed', 'sent', 'failed']).optional(),
+  role_id: z.string().uuid().optional().nullable(),
 })
 
 export async function PUT(req: NextRequest) {

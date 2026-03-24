@@ -1,5 +1,5 @@
 import { createAuthClient, getServiceClient } from '@/lib/db/client'
-import { listWorkspacesForUser, getCategories } from '@/lib/db/queries'
+import { listWorkspacesForUser, getCategories, listRolesForUser } from '@/lib/db/queries'
 import { Card, CardContent } from '@/components/ui/card'
 import { ListChecks } from 'lucide-react'
 import Link from 'next/link'
@@ -23,10 +23,11 @@ export default async function TasksPage({
   const limit = 25
   const offset = (page - 1) * limit
 
-  // Get user's workspaces and categories for filtering
-  const [workspaces, categories] = await Promise.all([
+  // Get user's workspaces, categories, and roles for filtering/assignment
+  const [workspaces, categories, roles] = await Promise.all([
     listWorkspacesForUser(user!.id).catch(() => []),
     getCategories(user!.id).catch(() => []),
+    listRolesForUser(user!.id).catch(() => []),
   ])
   const workspaceIds = workspaces.map(w => w.id)
 
@@ -36,7 +37,7 @@ export default async function TasksPage({
     .from('tasks')
     .select(`
       id, original_text, draft_text, edited_text, final_text, channel, category,
-      category_id, status, sender_name, created_at,
+      category_id, status, sender_name, created_at, workspace_id, role_id,
       workspaces(name, accent_color),
       roles(name)
     `, { count: 'exact' })
@@ -71,6 +72,8 @@ export default async function TasksPage({
     channel: task.channel,
     sender_name: task.sender_name,
     created_at: task.created_at,
+    workspace_id: task.workspace_id,
+    role_id: task.role_id,
     workspace_name: task.workspaces?.name,
     workspace_color: task.workspaces?.accent_color,
     role_name: task.roles?.name,
@@ -173,6 +176,12 @@ export default async function TasksPage({
             name: c.name,
             emoji: c.emoji || '',
             color: c.color || '#6B7280',
+          }))}
+          roles={(roles || []).map(r => ({
+            id: r.id,
+            name: r.name,
+            type: r.type,
+            status: r.status ?? undefined,
           }))}
         />
       )}
