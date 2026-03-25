@@ -1,5 +1,6 @@
 import { getServiceClient } from './client'
 import { DbError } from '@/lib/utils/errors'
+import { logger } from '@/lib/utils/logger'
 import type { Database, TaskStatus, TaskCategory } from './types'
 
 type Task = Database['public']['Tables']['tasks']['Row']
@@ -122,13 +123,18 @@ export async function deleteRole(id: string, ownerId: string) {
 
 export async function resolveRole(workspaceId: string, categoryId: string) {
   const db = getServiceClient()
-  const { data } = await db
+  const { data, error } = await db
     .from('workspace_roles')
     .select('*, roles(*)')
     .eq('workspace_id', workspaceId)
     .eq('category_id', categoryId)
-    .single()
-  // Null if no role configured — caller handles gracefully
+    .maybeSingle()
+
+  if (error) {
+    logger.error({ error, workspaceId, categoryId }, 'resolveRole query failed')
+    return null
+  }
+
   return (data as { roles: Database['public']['Tables']['roles']['Row'] } | null)?.roles ?? null
 }
 
@@ -254,7 +260,7 @@ export async function getTasksByTelegramMessageId(telegramMessageId: number) {
     .from('tasks')
     .select('*')
     .eq('telegram_message_id', telegramMessageId)
-    .single()
+    .maybeSingle()
   return data
 }
 

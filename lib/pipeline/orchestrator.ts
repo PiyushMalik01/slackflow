@@ -216,6 +216,13 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
   let role: { id: string; telegram_chat_id: string | null; name: string } | null = null
   if (categoryId) {
     role = await resolveRole(workspaceId, categoryId)
+    if (role) {
+      log.info({ roleId: role.id, roleName: role.name, hasTelegram: !!role.telegram_chat_id }, 'Role resolved for category')
+    } else {
+      log.warn({ workspaceId, categoryId, category: aiResult.category }, 'No role mapped for this category — task will be unassigned')
+    }
+  } else {
+    log.warn('No category ID — cannot resolve role')
   }
 
   // Update task with category + role info (AI pipeline already set draft/category fields)
