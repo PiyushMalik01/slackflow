@@ -200,6 +200,12 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
     threadContext,
   })
 
+  // If AI determined the message is not actionable, stop here (task already deleted by pipeline)
+  if (aiResult.actionable === false) {
+    log.info('Message not actionable, skipping routing')
+    return
+  }
+
   // Resolve matched category from categories list
   const matchedCategory = categories.find(
     (c) => c.name.toLowerCase() === aiResult.category.toLowerCase()

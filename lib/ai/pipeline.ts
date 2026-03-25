@@ -20,6 +20,7 @@ interface PipelineResult {
   draft: string | null
   confidence: number
   promptVersion: string
+  actionable?: boolean
 }
 
 export async function runAiPipeline(input: PipelineInput): Promise<PipelineResult> {
@@ -63,6 +64,20 @@ export async function runAiPipeline(input: PipelineInput): Promise<PipelineResul
       input.threadContext,
       input.ownerId,
     )
+
+    // If AI determined the message is NOT actionable, delete the pending task
+    if (!result.actionable) {
+      log.info({ reasoning: result.reasoning }, 'Message not actionable, removing task')
+      await supabase.from('tasks').delete().eq('id', input.taskId)
+      return {
+        category: 'General',
+        categoryId: null,
+        draft: null,
+        confidence: 0,
+        promptVersion: result.promptVersion,
+        actionable: false,
+      }
+    }
 
     // Resolve category ID
     const matchedCategory = categories.find(
