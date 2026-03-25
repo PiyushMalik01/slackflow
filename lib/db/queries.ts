@@ -134,14 +134,14 @@ export async function resolveRole(workspaceId: string, categoryId: string) {
 
 export async function getWorkspaceRoles(workspaceId: string, ownerId: string) {
   const db = getServiceClient()
-  // Verify workspace belongs to the requesting user before returning role mappings
-  const { data: ws } = await db
-    .from('workspaces')
-    .select('id')
-    .eq('id', workspaceId)
-    .eq('owner_id', ownerId)
+  // Verify user is a member of this workspace before returning role mappings
+  const { data: membership } = await db
+    .from('workspace_members')
+    .select('workspace_id')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', ownerId)
     .maybeSingle()
-  if (!ws) throw new DbError('workspace_not_found', 'Workspace not found or access denied')
+  if (!membership) throw new DbError('workspace_not_found', 'Workspace not found or access denied')
   const { data, error } = await db
     .from('workspace_roles')
     .select('*, roles(*)')
@@ -152,14 +152,14 @@ export async function getWorkspaceRoles(workspaceId: string, ownerId: string) {
 
 export async function setWorkspaceRole(workspaceId: string, categoryId: string, roleId: string, ownerId: string) {
   const db = getServiceClient()
-  // Verify workspace belongs to the requesting user
-  const { data: ws } = await db
-    .from('workspaces')
-    .select('id')
-    .eq('id', workspaceId)
-    .eq('owner_id', ownerId)
+  // Verify user is a member of this workspace
+  const { data: membership } = await db
+    .from('workspace_members')
+    .select('workspace_id')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', ownerId)
     .maybeSingle()
-  if (!ws) throw new DbError('workspace_not_found', 'Workspace not found or access denied')
+  if (!membership) throw new DbError('workspace_not_found', 'Workspace not found or access denied')
   const { error } = await db
     .from('workspace_roles')
     .upsert({ workspace_id: workspaceId, category_id: categoryId, role_id: roleId }, { onConflict: 'workspace_id,category_id' })
@@ -168,14 +168,14 @@ export async function setWorkspaceRole(workspaceId: string, categoryId: string, 
 
 export async function removeWorkspaceRole(workspaceId: string, categoryId: string, ownerId: string) {
   const db = getServiceClient()
-  // Verify workspace belongs to the requesting user
-  const { data: ws } = await db
-    .from('workspaces')
-    .select('id')
-    .eq('id', workspaceId)
-    .eq('owner_id', ownerId)
+  // Verify user is a member of this workspace
+  const { data: membership } = await db
+    .from('workspace_members')
+    .select('workspace_id')
+    .eq('workspace_id', workspaceId)
+    .eq('user_id', ownerId)
     .maybeSingle()
-  if (!ws) throw new DbError('workspace_not_found', 'Workspace not found or access denied')
+  if (!membership) throw new DbError('workspace_not_found', 'Workspace not found or access denied')
   const { error } = await db
     .from('workspace_roles')
     .delete()

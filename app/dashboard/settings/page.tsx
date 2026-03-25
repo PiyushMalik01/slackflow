@@ -1,5 +1,5 @@
 import { getAuthUser, getServiceClient } from '@/lib/db/client'
-import { getCategories, seedDefaultCategories } from '@/lib/db/queries'
+import { getCategories, seedDefaultCategories, listWorkspacesForUser } from '@/lib/db/queries'
 import { SettingsClient } from '@/components/settings-interactive'
 import { GuideTip } from '@/components/guide-tip'
 
@@ -12,18 +12,22 @@ export default async function SettingsPage() {
   const svc = getServiceClient()
 
   // Parallelize initial loads
-  let [categories, { data: workspaces }, { data: aiSettings }] = await Promise.all([
+  let [categories, workspacesFull, { data: aiSettings }] = await Promise.all([
     getCategories(user!.id),
-    svc
-      .from('workspaces')
-      .select('id, name, accent_color, team_group_chat_id, daily_digest_time')
-      .eq('owner_id', user!.id),
+    listWorkspacesForUser(user!.id),
     svc
       .from('ai_settings')
       .select('openai_email, openai_plan_type, openai_auth_method, openai_connected_at, openai_api_key_enc')
       .eq('owner_id', user!.id)
       .maybeSingle(),
   ])
+  const workspaces = workspacesFull.map(w => ({
+    id: w.id,
+    name: w.name,
+    accent_color: w.accent_color,
+    team_group_chat_id: w.team_group_chat_id,
+    daily_digest_time: w.daily_digest_time,
+  }))
 
   // Seed defaults if empty (sequential — depends on categories result)
   if (categories.length === 0) {

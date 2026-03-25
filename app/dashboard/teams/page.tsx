@@ -1,5 +1,5 @@
 import { getAuthUser, getServiceClient } from '@/lib/db/client'
-import { getCategories } from '@/lib/db/queries'
+import { getCategories, listWorkspacesForUser } from '@/lib/db/queries'
 import { TeamsClient } from '@/components/teams-interactive'
 import { GuideTip } from '@/components/guide-tip'
 
@@ -12,18 +12,16 @@ export default async function TeamsPage() {
   const svc = getServiceClient()
 
   // Parallelize independent queries
-  const [{ data: roles }, { data: workspaces }, categories] = await Promise.all([
+  const [{ data: roles }, workspacesFull, categories] = await Promise.all([
     svc
       .from('roles')
       .select('*, invite_tokens(token, expires_at, used_at)')
       .eq('owner_id', user!.id)
       .order('created_at'),
-    svc
-      .from('workspaces')
-      .select('id, name')
-      .eq('owner_id', user!.id),
+    listWorkspacesForUser(user!.id),
     getCategories(user!.id),
   ])
+  const workspaces = workspacesFull.map(w => ({ id: w.id, name: w.name }))
 
   // Load workspace role mappings (depends on workspaces result)
   const wsIds = (workspaces || []).map((w: { id: string }) => w.id)
