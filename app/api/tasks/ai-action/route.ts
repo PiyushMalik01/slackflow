@@ -32,11 +32,11 @@ export async function POST(req: NextRequest) {
 
     if (!tasks || tasks.length === 0) return json400('No tasks found')
 
-    // Verify ownership
+    // Verify membership
     const wsIds = [...new Set(tasks.map(t => t.workspace_id))]
     for (const wsId of wsIds) {
-      const { data: ws } = await svc.from('workspaces').select('id').eq('id', wsId).eq('owner_id', user.id).maybeSingle()
-      if (!ws) return json403('Not authorized')
+      const { data: mem } = await svc.from('workspace_members').select('workspace_id').eq('workspace_id', wsId).eq('user_id', user.id).maybeSingle()
+      if (!mem) return json403('Not authorized')
     }
 
     const categories = await getCategories(user.id)

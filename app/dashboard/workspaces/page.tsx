@@ -1,4 +1,5 @@
 import { getAuthUser, getServiceClient } from '@/lib/db/client'
+import { listWorkspacesForUser } from '@/lib/db/queries'
 import { Building2, Plus, CheckCircle, XCircle, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -19,12 +20,23 @@ export default async function WorkspacesPage({
 
   const svc = getServiceClient()
 
-  // Load workspaces with channel info
-  const { data: workspaces } = await svc
-    .from('workspaces')
-    .select('*')
-    .eq('owner_id', user!.id)
-    .order('installed_at', { ascending: false })
+  // Load workspaces via membership
+  const workspaces = await listWorkspacesForUser(user!.id)
+
+  // Get member counts for each workspace
+  const memberCounts: Record<string, number> = {}
+  if (workspaces.length > 0) {
+    const wsIds = workspaces.map(w => w.id)
+    const { data: members } = await svc
+      .from('workspace_members')
+      .select('workspace_id')
+      .in('workspace_id', wsIds)
+    if (members) {
+      for (const m of members) {
+        memberCounts[m.workspace_id] = (memberCounts[m.workspace_id] || 0) + 1
+      }
+    }
+  }
 
   const params = await searchParams
   const isWorkspaceTaken = params.error === 'workspace_taken'
@@ -47,7 +59,13 @@ export default async function WorkspacesPage({
       </div>
 
       {/* Toast notifications */}
-      {toast === 'success' && (
+      {toast === 'success' && params.success === 'joined' && (
+        <div className="flex items-center gap-2 bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20 px-4 py-3 rounded-lg text-sm">
+          <CheckCircle className="size-4 flex-shrink-0" />
+          Joined existing workspace successfully. You now share data with other members.
+        </div>
+      )}
+      {toast === 'success' && params.success !== 'joined' && (
         <div className="flex items-center gap-2 bg-green-500/10 text-green-700 dark:text-green-400 border border-green-500/20 px-4 py-3 rounded-lg text-sm">
           <CheckCircle className="size-4 flex-shrink-0" />
           Workspace connected successfully.
@@ -105,7 +123,12 @@ export default async function WorkspacesPage({
       ) : (
         <div className="grid gap-4">
           {workspaces.map((ws) => (
-            <WorkspaceCard key={ws.id} workspace={ws} />
+            <WorkspaceCard
+              key={ws.id}
+              workspace={ws}
+              isOwner={ws.owner_id === user!.id}
+              memberCount={memberCounts[ws.id] || 1}
+            />
           ))}
 
           {/* Add workspace CTA */}

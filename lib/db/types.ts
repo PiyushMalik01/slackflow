@@ -258,6 +258,27 @@ export interface Database {
         }
         Update: Partial<Database['public']['Tables']['team_invite_links']['Insert']>
       }
+      workspace_members: {
+        Row: {
+          id: string
+          workspace_id: string
+          user_id: string
+          role: string
+          joined_at: string
+        }
+        Insert: {
+          workspace_id: string
+          user_id: string
+          role?: string
+          joined_at?: string
+        }
+        Update: Partial<{
+          workspace_id: string
+          user_id: string
+          role: string
+          joined_at: string
+        }>
+      }
       ai_settings: {
         Row: {
           id: string
@@ -356,4 +377,12 @@ export interface TeamInviteLink {
   max_joins: number
   join_count: number
   created_at: string
+}
+
+export interface WorkspaceMember {
+  id: string
+  workspace_id: string
+  user_id: string
+  role: string
+  joined_at: string
 }

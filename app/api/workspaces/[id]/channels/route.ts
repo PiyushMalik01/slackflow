@@ -15,7 +15,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params
 
   const svc = getServiceClient()
-  const { data: workspace } = await svc.from('workspaces').select('*').eq('id', id).eq('owner_id', user.id).maybeSingle()
+  // Verify user is a member of this workspace
+  const { data: membership } = await svc.from('workspace_members').select('workspace_id').eq('workspace_id', id).eq('user_id', user.id).maybeSingle()
+  if (!membership) return json403('Workspace not found')
+  const { data: workspace } = await svc.from('workspaces').select('*').eq('id', id).maybeSingle()
   if (!workspace) return json403('Workspace not found')
 
   try {
@@ -52,8 +55,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
     const svc = getServiceClient()
 
-    // Get workspace to determine which channels were added/removed
-    const { data: workspace } = await svc.from('workspaces').select('*').eq('id', id).eq('owner_id', user.id).maybeSingle()
+    // Verify user is a member of this workspace
+    const { data: membership } = await svc.from('workspace_members').select('workspace_id').eq('workspace_id', id).eq('user_id', user.id).maybeSingle()
+    if (!membership) return json403('Workspace not found')
+    const { data: workspace } = await svc.from('workspaces').select('*').eq('id', id).maybeSingle()
     if (!workspace) return json403('Workspace not found')
 
     const previousChannels: string[] = workspace.monitored_channels || []
@@ -111,7 +116,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       .from('workspaces')
       .update({ monitored_channels: monitoredChannels })
       .eq('id', id)
-      .eq('owner_id', user.id)
 
     if (error) throw error
 

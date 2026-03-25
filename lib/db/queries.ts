@@ -7,6 +7,16 @@ type TaskInsert = Database['public']['Tables']['tasks']['Insert']
 type WorkspaceInsert = Database['public']['Tables']['workspaces']['Insert']
 type RoleInsert = Database['public']['Tables']['roles']['Insert']
 
+// ── Workspace Members ─────────────────────────────────────────────────────────
+
+export async function getWorkspaceIdsForUser(userId: string): Promise<string[]> {
+  const { data } = await getServiceClient()
+    .from('workspace_members')
+    .select('workspace_id')
+    .eq('user_id', userId)
+  return data?.map(r => r.workspace_id) || []
+}
+
 // ── Workspaces ────────────────────────────────────────────────────────────────
 
 export async function getWorkspaceByTeamId(teamId: string) {
@@ -44,11 +54,13 @@ export async function upsertWorkspace(workspace: WorkspaceInsert) {
 }
 
 export async function listWorkspacesForUser(userId: string) {
+  const wsIds = await getWorkspaceIdsForUser(userId)
+  if (wsIds.length === 0) return []
   const db = getServiceClient()
   const { data, error } = await db
     .from('workspaces')
     .select('*')
-    .eq('owner_id', userId)
+    .in('id', wsIds)
     .order('installed_at', { ascending: false })
   if (error) throw new DbError('workspaces_list_failed', error.message)
   return data ?? []
@@ -215,22 +227,13 @@ export async function listTasks(filters: {
   let q = db.from('tasks').select('*, workspaces(name, slack_team_id), roles(name, type)', { count: 'exact' })
 
   if (filters.workspaceId) {
-    // Verify the requested workspace belongs to this owner before filtering by it
-    const { data: ws } = await db
-      .from('workspaces')
-      .select('id')
-      .eq('id', filters.workspaceId)
-      .eq('owner_id', filters.ownerId)
-      .maybeSingle()
-    if (!ws) return { tasks: [], total: 0 }
+    // Verify the requested workspace is accessible to this user via membership
+    const userWsIds = await getWorkspaceIdsForUser(filters.ownerId)
+    if (!userWsIds.includes(filters.workspaceId)) return { tasks: [], total: 0 }
     q = q.eq('workspace_id', filters.workspaceId)
   } else {
-    // Scope to all workspaces owned by this user
-    const { data: workspaces } = await db
-      .from('workspaces')
-      .select('id')
-      .eq('owner_id', filters.ownerId)
-    const wsIds = workspaces?.map(w => w.id) ?? []
+    // Scope to all workspaces the user is a member of
+    const wsIds = await getWorkspaceIdsForUser(filters.ownerId)
     if (wsIds.length === 0) return { tasks: [], total: 0 }
     q = q.in('workspace_id', wsIds)
   }
@@ -276,9 +279,8 @@ export async function getDashboardMetrics(ownerId: string, workspaceId?: string)
   if (workspaceId) {
     query = query.eq('workspace_id', workspaceId)
   } else {
-    // Filter by owner's workspaces
-    const { data: workspaces } = await supabase.from('workspaces').select('id').eq('owner_id', ownerId)
-    const wsIds = workspaces?.map(w => w.id) || []
+    // Filter by user's workspaces via membership
+    const wsIds = await getWorkspaceIdsForUser(ownerId)
     if (wsIds.length === 0) return { tasksToday: 0, approvalRate: 0, pendingCount: 0, totalTasks: 0 }
     query = query.in('workspace_id', wsIds)
   }
@@ -304,8 +306,7 @@ export async function getRecentTasks(ownerId: string, workspaceId?: string, limi
   if (workspaceId) {
     query = query.eq('workspace_id', workspaceId)
   } else {
-    const { data: workspaces } = await supabase.from('workspaces').select('id').eq('owner_id', ownerId)
-    const wsIds = workspaces?.map(w => w.id) || []
+    const wsIds = await getWorkspaceIdsForUser(ownerId)
     if (wsIds.length === 0) return []
     query = query.in('workspace_id', wsIds)
   }
@@ -316,12 +317,12 @@ export async function getRecentTasks(ownerId: string, workspaceId?: string, limi
 
 export async function getSetupStatus(ownerId: string) {
   const supabase = getServiceClient()
-  const { data: workspaces } = await supabase.from('workspaces').select('id').eq('owner_id', ownerId)
+  const wsIds = await getWorkspaceIdsForUser(ownerId)
   const { data: roles } = await supabase.from('roles').select('id, status').eq('owner_id', ownerId)
   const { data: categories } = await supabase.from('categories').select('id').eq('owner_id', ownerId)
 
   return {
-    hasWorkspace: (workspaces?.length || 0) > 0,
+    hasWorkspace: wsIds.length > 0,
     hasRoles: (roles?.length || 0) > 0,
     hasLinkedMembers: roles?.some(r => r.status === 'linked') || false,
     hasCategories: (categories?.length || 0) > 0,

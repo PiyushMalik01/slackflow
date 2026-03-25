@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Building2, ChevronDown, ChevronUp, Hash, Loader2,
-  AlertTriangle, Calendar, Radio, Trash2
+  AlertTriangle, Calendar, Radio, Trash2, LogOut, Users
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
@@ -30,7 +30,15 @@ interface Workspace {
   team_group_chat_id?: string | null
 }
 
-export function WorkspaceCard({ workspace }: { workspace: Workspace }) {
+export function WorkspaceCard({
+  workspace,
+  isOwner = true,
+  memberCount = 1,
+}: {
+  workspace: Workspace
+  isOwner?: boolean
+  memberCount?: number
+}) {
   const router = useRouter()
   const [expanded, setExpanded] = useState(false)
   const [channels, setChannels] = useState<Channel[] | null>(null)
@@ -41,6 +49,7 @@ export function WorkspaceCard({ workspace }: { workspace: Workspace }) {
 
   const monitoredCount = workspace.monitored_channels?.length || 0
   const accentColor = workspace.accent_color || '#3B82F6'
+  const isShared = memberCount > 1
 
   async function toggleExpanded() {
     if (!expanded && channels === null) {
@@ -106,6 +115,16 @@ export function WorkspaceCard({ workspace }: { workspace: Workspace }) {
     }
   }
 
+  // Determine dialog text based on ownership and member count
+  const isOwnerWithOtherMembers = isOwner && isShared
+  const disconnectTitle = isOwner && !isShared ? 'Delete Workspace' : 'Disconnect Workspace'
+  const disconnectDescription = isOwner && !isShared
+    ? `Delete "${workspace.name}"? All tasks, routing rules, and activity logs for this workspace will be permanently removed.`
+    : isOwnerWithOtherMembers
+    ? `Disconnect from "${workspace.name}"? Ownership will be transferred to another member. The workspace and its data will remain accessible to other members.`
+    : `Disconnect from "${workspace.name}"? You will lose access to this workspace's tasks and activity. The workspace will remain for other members.`
+  const disconnectLabel = isOwner && !isShared ? 'Delete Workspace' : 'Disconnect'
+
   return (
     <>
     <Card className="overflow-hidden">
@@ -127,6 +146,11 @@ export function WorkspaceCard({ workspace }: { workspace: Workspace }) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <CardTitle>{workspace.name}</CardTitle>
+                  {!isOwner && (
+                    <Badge variant="secondary" className="text-[10px]">
+                      Shared
+                    </Badge>
+                  )}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
@@ -137,6 +161,12 @@ export function WorkspaceCard({ workspace }: { workspace: Workspace }) {
                     <Radio className="size-3 flex-shrink-0" />
                     {monitoredCount} {monitoredCount === 1 ? 'channel' : 'channels'} monitored
                   </span>
+                  {isShared && (
+                    <span className="flex items-center gap-1">
+                      <Users className="size-3 flex-shrink-0" />
+                      {memberCount} {memberCount === 1 ? 'member' : 'members'}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
@@ -148,9 +178,13 @@ export function WorkspaceCard({ workspace }: { workspace: Workspace }) {
                   size="sm"
                   className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 h-7 w-7 p-0"
                   onClick={() => setDeleteOpen(true)}
-                  title="Delete workspace"
+                  title={isOwner && !isShared ? 'Delete workspace' : 'Disconnect workspace'}
                 >
-                  <Trash2 className="size-3.5" />
+                  {isOwner && !isShared ? (
+                    <Trash2 className="size-3.5" />
+                  ) : (
+                    <LogOut className="size-3.5" />
+                  )}
                 </Button>
               </div>
             </div>
@@ -232,17 +266,17 @@ export function WorkspaceCard({ workspace }: { workspace: Workspace }) {
     <ConfirmDialog
       open={deleteOpen}
       onOpenChange={setDeleteOpen}
-      title="Delete Workspace"
-      description={`Delete "${workspace.name}"? All tasks, routing rules, and activity logs for this workspace will be permanently removed.`}
-      confirmLabel="Delete Workspace"
+      title={disconnectTitle}
+      description={disconnectDescription}
+      confirmLabel={disconnectLabel}
       variant="danger"
       onConfirm={async () => {
         const res = await fetch(`/api/workspaces/${workspace.id}`, { method: 'DELETE' })
         if (res.ok) {
-          toast.success('Workspace deleted')
+          toast.success(isOwner && !isShared ? 'Workspace deleted' : 'Disconnected from workspace')
           router.refresh()
         } else {
-          toast.error('Failed to delete workspace')
+          toast.error('Failed to disconnect workspace')
         }
       }}
     />

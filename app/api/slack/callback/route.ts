@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { encrypt } from '@/lib/utils/security'
-import { upsertWorkspace } from '@/lib/db/queries'
+import { getServiceClient } from '@/lib/db/client'
 import { logger } from '@/lib/utils/logger'
 
 export async function GET(req: NextRequest) {
@@ -39,23 +39,60 @@ export async function GET(req: NextRequest) {
       )
     }
 
-    const { enc: tokenEnc, iv: tokenIv } = encrypt(data.access_token)
+    const svc = getServiceClient()
 
-    await upsertWorkspace({
-      owner_id: state,
-      slack_team_id: data.team.id,
-      name: data.team.name,
-      access_token_enc: tokenEnc,
-      access_token_iv: tokenIv,
-      bot_user_id: data.bot_user_id ?? data.authed_user?.id ?? '',
-      monitored_channels: [],
-      team_group_chat_id: null,
-      daily_digest_time: null,
-      accent_color: '#3B82F6',
-    })
+    // Check if workspace already exists for this Slack team
+    const { data: existing } = await svc
+      .from('workspaces')
+      .select('id, owner_id')
+      .eq('slack_team_id', data.team.id)
+      .maybeSingle()
 
-    logger.info({ teamId: data.team.id }, 'Workspace installed successfully')
-    return NextResponse.redirect(new URL('/dashboard/workspaces?success=1', appUrl))
+    if (existing) {
+      // Workspace exists — join as member, update token
+      await svc.from('workspace_members').upsert({
+        workspace_id: existing.id,
+        user_id: state,
+        role: 'admin',
+      }, { onConflict: 'workspace_id,user_id' })
+
+      // Update the access token (new auth may have better scopes)
+      const { enc: tokenEnc, iv: tokenIv } = encrypt(data.access_token)
+      await svc.from('workspaces').update({
+        access_token_enc: tokenEnc,
+        access_token_iv: tokenIv,
+        updated_at: new Date().toISOString(),
+      }).eq('id', existing.id)
+
+      logger.info({ teamId: data.team.id, userId: state }, 'User joined existing workspace')
+      return NextResponse.redirect(new URL('/dashboard/workspaces?success=joined', appUrl))
+    } else {
+      // New workspace — create it
+      const { enc: tokenEnc, iv: tokenIv } = encrypt(data.access_token)
+      const { data: ws } = await svc.from('workspaces').insert({
+        owner_id: state,
+        slack_team_id: data.team.id,
+        name: data.team.name,
+        access_token_enc: tokenEnc,
+        access_token_iv: tokenIv,
+        bot_user_id: data.bot_user_id ?? data.authed_user?.id ?? '',
+        monitored_channels: [],
+        team_group_chat_id: null,
+        daily_digest_time: null,
+        accent_color: '#3B82F6',
+      }).select().single()
+
+      if (ws) {
+        await svc.from('workspace_members').insert({
+          workspace_id: ws.id,
+          user_id: state,
+          role: 'admin',
+        })
+      }
+
+      logger.info({ teamId: data.team.id }, 'Workspace installed successfully')
+      return NextResponse.redirect(new URL('/dashboard/workspaces?success=1', appUrl))
+    }
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error)
     logger.error({ error: msg }, 'Slack callback error')

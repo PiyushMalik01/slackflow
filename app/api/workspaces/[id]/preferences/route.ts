@@ -18,15 +18,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const svc = getServiceClient()
 
-  // Verify ownership
-  const { data: workspace } = await svc
-    .from('workspaces')
-    .select('id')
-    .eq('id', id)
-    .eq('owner_id', user.id)
+  // Verify membership
+  const { data: membership } = await svc
+    .from('workspace_members')
+    .select('workspace_id')
+    .eq('workspace_id', id)
+    .eq('user_id', user.id)
     .maybeSingle()
 
-  if (!workspace) return json403('Workspace not found')
+  if (!membership) return json403('Workspace not found')
 
   const updateData: Record<string, unknown> = {}
   if (body.accent_color !== undefined) updateData.accent_color = body.accent_color

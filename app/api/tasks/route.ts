@@ -32,9 +32,9 @@ export async function PUT(req: NextRequest) {
     const { data: fullTask } = await svc.from('tasks').select('*, workspaces(name), categories(emoji)').eq('id', id).single()
     if (!fullTask) return json403('Task not found')
 
-    // Verify task belongs to user's workspace
-    const { data: ws } = await svc.from('workspaces').select('id').eq('id', fullTask.workspace_id).eq('owner_id', user.id).maybeSingle()
-    if (!ws) return json403('Not authorized')
+    // Verify task belongs to a workspace the user is a member of
+    const { data: membership } = await svc.from('workspace_members').select('workspace_id').eq('workspace_id', fullTask.workspace_id).eq('user_id', user.id).maybeSingle()
+    if (!membership) return json403('Not authorized')
 
     // Store old role for reassignment notification
     const oldRoleId = fullTask.role_id
@@ -135,8 +135,8 @@ export async function DELETE(req: NextRequest) {
       for (const taskId of idList) {
         const { data: task } = await svc.from('tasks').select('workspace_id').eq('id', taskId).maybeSingle()
         if (task) {
-          const { data: ws } = await svc.from('workspaces').select('id').eq('id', task.workspace_id).eq('owner_id', user.id).maybeSingle()
-          if (!ws) return json403('Not authorized for task ' + taskId)
+          const { data: mem } = await svc.from('workspace_members').select('workspace_id').eq('workspace_id', task.workspace_id).eq('user_id', user.id).maybeSingle()
+          if (!mem) return json403('Not authorized for task ' + taskId)
         }
       }
       await svc.from('tasks').delete().in('id', idList)
@@ -147,8 +147,8 @@ export async function DELETE(req: NextRequest) {
 
     const { data: task } = await svc.from('tasks').select('workspace_id').eq('id', id).maybeSingle()
     if (task) {
-      const { data: ws } = await svc.from('workspaces').select('id').eq('id', task.workspace_id).eq('owner_id', user.id).maybeSingle()
-      if (!ws) return json403('Not authorized')
+      const { data: mem } = await svc.from('workspace_members').select('workspace_id').eq('workspace_id', task.workspace_id).eq('user_id', user.id).maybeSingle()
+      if (!mem) return json403('Not authorized')
     }
 
     await svc.from('tasks').delete().eq('id', id)

@@ -42,25 +42,19 @@ export async function POST(req: NextRequest) {
     try {
       const { getServiceClient } = await import('@/lib/db/client')
       const supabase = getServiceClient()
-      const { data: workspaces } = await supabase
+      const { data: workspace } = await supabase
         .from('workspaces')
         .select('id')
         .eq('slack_team_id', teamId)
+        .maybeSingle()
 
-      if (!workspaces || workspaces.length === 0) {
+      if (!workspace) {
         logger.warn({ teamId }, 'No workspace found for team')
         return
       }
 
-      // Process for each user who has this workspace connected — data isolation via owner_id
-      for (const workspace of workspaces) {
-        try {
-          // Append workspace.id to event_id so idempotency dedup doesn't block the second user
-          await handleSlackMessage({ ...event, event_id: `${body.event_id}_${workspace.id}` }, workspace.id)
-        } catch (err) {
-          logger.error({ err, workspaceId: workspace.id }, 'Pipeline error for workspace')
-        }
-      }
+      // Single workspace per Slack team — one message, one task, one AI call
+      await handleSlackMessage({ ...event, event_id: body.event_id }, workspace.id)
 
       // Also process any due snooze reminders
       await processDueSnoozes().catch(() => {})
