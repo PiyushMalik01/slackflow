@@ -1,4 +1,4 @@
-import { getAuthUser, getServiceClient } from '@/lib/db/client'
+import { getAuthUser, getServiceClient, getSelectedWorkspace } from '@/lib/db/client'
 import { getDashboardMetrics, getRecentTasks, getSetupStatus, getCategories, listWorkspacesForUser } from '@/lib/db/queries'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CategoryBadge } from '@/components/category-badge'
@@ -37,12 +37,13 @@ function getRelativeTime(dateStr: string): string {
 
 export default async function DashboardPage() {
   const user = await getAuthUser()
+  const selectedWorkspace = await getSelectedWorkspace()
 
   const [metrics, recentTasks, setup, categories, workspaces] = await Promise.all([
-    getDashboardMetrics(user!.id).catch(() => ({
+    getDashboardMetrics(user!.id, selectedWorkspace || undefined).catch(() => ({
       tasksToday: 0, approvalRate: 0, pendingCount: 0, totalTasks: 0,
     })),
-    getRecentTasks(user!.id).catch(() => []),
+    getRecentTasks(user!.id, selectedWorkspace || undefined).catch(() => []),
     getSetupStatus(user!.id).catch(() => ({
       hasWorkspace: false, hasRoles: false, hasLinkedMembers: false, hasCategories: false,
     })),
@@ -57,7 +58,7 @@ export default async function DashboardPage() {
   const categoryData: { name: string; count: number; color: string }[] = []
   const statusData: { name: string; count: number; color: string }[] = []
 
-  const wsIds = workspaces.map((w: any) => w.id)
+  const wsIds = selectedWorkspace ? [selectedWorkspace] : workspaces.map((w: any) => w.id)
   if (wsIds.length > 0) {
     const db = getServiceClient()
 

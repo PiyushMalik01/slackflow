@@ -1,4 +1,4 @@
-import { getAuthUser, getServiceClient } from '@/lib/db/client'
+import { getAuthUser, getServiceClient, getSelectedWorkspace } from '@/lib/db/client'
 import { listWorkspacesForUser, getCategories, listRolesForUser } from '@/lib/db/queries'
 import { Card, CardContent } from '@/components/ui/card'
 import { ListChecks } from 'lucide-react'
@@ -17,6 +17,7 @@ export default async function TasksPage({
 }) {
   // Layout already validates auth and redirects — just get user ID for queries
   const user = await getAuthUser()
+  const selectedWorkspace = await getSelectedWorkspace()
 
   const params = await searchParams
   const page = Math.max(1, parseInt(params.page ?? '1'))
@@ -29,7 +30,7 @@ export default async function TasksPage({
     getCategories(user!.id).catch(() => []),
     listRolesForUser(user!.id).catch(() => []),
   ])
-  const workspaceIds = workspaces.map(w => w.id)
+  const workspaceIds = selectedWorkspace ? [selectedWorkspace] : workspaces.map(w => w.id)
 
   // Build query
   const db = getServiceClient()
@@ -44,7 +45,7 @@ export default async function TasksPage({
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1)
 
-  // Enforce data isolation
+  // Enforce data isolation — filter to selected workspace or all user workspaces
   if (workspaceIds.length > 0) {
     q = q.in('workspace_id', workspaceIds)
   } else {

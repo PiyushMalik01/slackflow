@@ -5,6 +5,13 @@ import { createClient } from '@supabase/supabase-js'
 import { createServerClient as createSSRClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
+// ── Workspace filter — reads selected workspace from cookie ─────────────────
+export async function getSelectedWorkspace(): Promise<string | null> {
+  const cookieStore = await cookies()
+  const ws = cookieStore.get('slackflow_workspace')?.value
+  return ws || null
+}
+
 // ── Service client (API routes – bypasses RLS with service role) ──────────────
 function createServiceClient() {
   return createClient(

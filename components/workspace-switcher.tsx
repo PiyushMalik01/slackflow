@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@/lib/db/browser-client'
 import { ChevronDown, Building2, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -12,27 +12,42 @@ interface Workspace {
   accent_color: string
 }
 
+function getCookie(name: string): string | null {
+  const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]*)'))
+  return match ? decodeURIComponent(match[1]) : null
+}
+
 export function WorkspaceSwitcher({ className }: { className?: string }) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([])
   const [selected, setSelected] = useState<string>('all')
   const [open, setOpen] = useState(false)
   const router = useRouter()
-  const searchParams = useSearchParams()
 
+  // Read initial selection from cookie
   useEffect(() => {
-    const ws = searchParams.get('workspace')
+    const ws = getCookie('slackflow_workspace')
     if (ws) setSelected(ws)
-  }, [searchParams])
+  }, [])
 
+  // Load workspaces + listen for realtime changes
   useEffect(() => {
+    const supabase = createBrowserClient()
+
     async function load() {
-      const supabase = createBrowserClient()
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
       const { data } = await supabase.from('workspaces').select('id, name, accent_color').eq('owner_id', user.id)
       setWorkspaces(data || [])
     }
+
     load()
+
+    const channel = supabase
+      .channel('ws-switcher')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'workspaces' }, () => load())
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [])
 
   // Close on outside click
@@ -49,13 +64,16 @@ export function WorkspaceSwitcher({ className }: { className?: string }) {
   function handleSelect(value: string) {
     setSelected(value)
     setOpen(false)
-    const params = new URLSearchParams(searchParams.toString())
+
+    // Store in cookie so server components can read it
     if (value === 'all') {
-      params.delete('workspace')
+      document.cookie = 'slackflow_workspace=; path=/; max-age=0'
     } else {
-      params.set('workspace', value)
+      document.cookie = `slackflow_workspace=${value}; path=/; max-age=${60 * 60 * 24 * 30}`
     }
-    router.push(`?${params.toString()}`)
+
+    // Refresh to reload server components with new filter
+    router.refresh()
   }
 
   const selectedWs = workspaces.find(w => w.id === selected)

@@ -1,4 +1,4 @@
-import { getAuthUser, getServiceClient } from '@/lib/db/client'
+import { getAuthUser, getServiceClient, getSelectedWorkspace } from '@/lib/db/client'
 import { listWorkspacesForUser, listActivityLog } from '@/lib/db/queries'
 import {
   Activity, Plus, Sparkles, Check, X, AlertTriangle,
@@ -97,13 +97,14 @@ export default async function ActivityPage({
   searchParams: Promise<{ page?: string; action?: string }>
 }) {
   const user = await getAuthUser()
+  const selectedWorkspace = await getSelectedWorkspace()
 
   const params = await searchParams
   const page = Math.max(1, parseInt(params.page || '1', 10))
   const actionFilter = params.action || ''
 
   const workspaces = await listWorkspacesForUser(user!.id).catch(() => [])
-  const workspaceIds = workspaces.map(w => w.id)
+  const workspaceIds = selectedWorkspace ? [selectedWorkspace] : workspaces.map(w => w.id)
   const workspaceMap = Object.fromEntries(workspaces.map(w => [w.id, w]))
 
   // Build a map of telegram chat IDs to role names for actor display
