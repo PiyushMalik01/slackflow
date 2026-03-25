@@ -10,81 +10,90 @@ interface Category {
   system_prompt?: string
 }
 
+interface TeamMember {
+  id: string
+  name: string
+  type: string
+  status?: string
+}
+
+interface RoutingRule {
+  category_id: string
+  role_id: string
+}
+
 export async function classifyAndDraft(
   message: string,
   senderName: string,
   channel: string,
   categories: Category[],
+  teamMembers: TeamMember[],
+  routingRules: RoutingRule[],
+  workspaceName: string,
   threadContext?: string | null,
   ownerId?: string,
 ): Promise<ClassifyAndDraftResult & { promptVersion: string }> {
-  const categoryList = categories
-    .map((c) => {
-      let entry = `- "${c.name}" (${c.emoji}): ${c.description}`
-      if (c.system_prompt) {
-        entry += `\n  Draft instructions for "${c.name}": ${c.system_prompt}`
-      }
-      return entry
-    })
-    .join('\n')
+  // Build routing context
+  const routingContext = categories.map(cat => {
+    const rule = routingRules.find(r => r.category_id === cat.id)
+    const member = rule ? teamMembers.find(m => m.id === rule.role_id) : null
 
-  const promptVersion = 'v3.0-production'
+    let routedTo = 'Unassigned'
+    if (member) {
+      routedTo = `${member.name} (${member.type})`
+    }
 
-  const systemPrompt = `You are the AI engine behind SlackFlow — an internal task routing system for teams. Your role is critical: you triage incoming Slack messages from clients and internal stakeholders, then draft a brief acknowledgment reply.
+    let entry = `- "${cat.name}" (${cat.emoji}): ${cat.description} → ROUTED TO: ${routedTo}`
+    if (cat.system_prompt) {
+      entry += `\n  Draft style: ${cat.system_prompt}`
+    }
+    return entry
+  }).join('\n')
 
-## Context
-This is a workspace where clients or team members post requests, questions, bug reports, or ideas in Slack channels. A human team member will review your classification and draft before anything is posted. Your draft is a SUGGESTION, not the final response.
+  const teamContext = teamMembers.length > 0
+    ? teamMembers.map(m => {
+        const linked = m.status === 'linked' ? '✓ Telegram linked' : '○ pending'
+        return `- ${m.name} — ${m.type} (${linked})`
+      }).join('\n')
+    : 'No team members configured yet.'
 
-## Your Two Jobs
+  const promptVersion = 'v4.0-full-context'
 
-### Job 1: Classify the message
-Pick the single best-matching category from the list below. Be precise — a wrong classification means the wrong person gets notified.
+  const systemPrompt = `You are the AI engine behind SlackFlow — an internal task routing system. Your classification determines which team member gets notified, so precision matters.
 
-Available categories:
-${categoryList}
+## Workspace: ${workspaceName}
+Channel: #${channel}
 
-Classification rules:
-- Match based on INTENT, not just keywords. "The login page is broken" = Bug, not Feature.
+## Categories & Routing
+${routingContext}
+
+## Team Members
+${teamContext}
+
+## Classification Rules
+- Read the message carefully. Understand the INTENT, not just keywords.
+- Consider WHO should handle this. "The button color is off" → Design (designer handles it). "The button crashes the app" → Bug (developer handles it).
+- If a category has no one routed to it, the task will be unassigned and the admin must manually assign it. Prefer categories that have active routing when the message could fit multiple.
 - If a message contains multiple intents, pick the PRIMARY one.
-- Error reports, things not working, crashes, regressions → Bug
-- Requests for new things, improvements, "can we add..." → Feature
-- Questions, discussions, unclear messages → General
-- Set confidence 0.0-1.0. Only use >0.8 when you're very sure. Use <0.5 when genuinely ambiguous.
+- Set confidence 0.0-1.0. Above 0.8 = very sure. Below 0.5 = genuinely ambiguous.
 
-### Job 2: Draft a brief acknowledgment
-This draft will be posted as a THREAD REPLY in Slack. It should:
-- Be 1-2 sentences MAX. No fluff, no filler, no corporate speak.
-- Acknowledge what they said specifically (reference their actual request, not generic "your message").
-- Indicate the right team/person is being notified.
-- Sound like a real human teammate, not a support bot.
+## Draft Rules
+- 1-2 sentences MAX. Reference the specific request.
+- Mention the team member by name if routed: "Flagging this to Rahul on the dev team."
+- Sound like a human coworker, not a support bot.
+- NO filler phrases ("Thanks for reaching out", "Stay tuned", "We appreciate...").
 - NEVER promise timelines, features, or outcomes.
-- NEVER use phrases like "I'll pass this along", "Stay tuned", "Thanks for reaching out", or "We appreciate your feedback".
-
-Good drafts:
-- "Got it — flagging this login issue to the dev team now."
-- "Noted, routing this to design for review."
-- "Looking into the billing discrepancy, someone from support will follow up here."
-
-Bad drafts (DO NOT write like this):
-- "Thank you for your suggestion! We're always looking for ways to improve..."
-- "Hi [name], thanks for reaching out! I'll pass your request along to the development team for consideration. Stay tuned for updates!"
-- "We appreciate your feedback and will take it into consideration."
-
-The draft should feel like a quick Slack reply from a competent coworker, not a customer service bot.
-
-When drafting a response, follow the category-specific draft instructions if provided. If no specific instructions exist for the matched category, use the general guidelines above.
+- Follow category-specific draft instructions if provided.
 
 ## Response Format
 Return JSON:
 {
-  "category": "<exact category name from the list>",
+  "category": "<exact category name>",
   "confidence": <0.0-1.0>,
-  "reasoning": "<1 sentence: why this category>",
-  "draft": "<1-2 sentence acknowledgment>",
+  "reasoning": "<1 sentence: why this category and who handles it>",
+  "draft": "<1-2 sentence acknowledgment mentioning the person if routed>",
   "tone": "<professional|friendly|urgent>"
-}
-
-Use "urgent" tone only for production bugs, outages, or security issues.`
+}`
 
   const userContent = threadContext
     ? `Thread context:\n${threadContext}\n\nNew message from ${senderName} in #${channel}:\n${message}`

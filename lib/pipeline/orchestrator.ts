@@ -193,9 +193,10 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
     taskId: task.id,
     workspaceId,
     ownerId: workspace.owner_id,
+    workspaceName: workspace.name,
     message: event.text,
     senderName,
-    channel: event.channel,
+    channel: channelName,
     threadContext,
   })
 

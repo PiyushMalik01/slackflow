@@ -7,6 +7,7 @@ interface PipelineInput {
   taskId: string
   workspaceId: string
   ownerId: string
+  workspaceName: string
   message: string
   senderName: string
   channel: string
@@ -39,12 +40,26 @@ export async function runAiPipeline(input: PipelineInput): Promise<PipelineResul
       }
     }
 
-    // Combined classify + draft
+    // Load team context
+    const { data: roles } = await supabase
+      .from('roles')
+      .select('id, name, type, status, telegram_chat_id')
+      .eq('owner_id', input.ownerId)
+
+    const { data: workspaceRoles } = await supabase
+      .from('workspace_roles')
+      .select('category_id, role_id')
+      .eq('workspace_id', input.workspaceId)
+
+    // Combined classify + draft with full team context
     const result = await classifyAndDraft(
       input.message,
       input.senderName,
       input.channel,
       categories,
+      (roles || []).map(r => ({ id: r.id, name: r.name, type: r.type, status: r.status || undefined })),
+      (workspaceRoles || []).map(wr => ({ category_id: wr.category_id, role_id: wr.role_id })),
+      input.workspaceName,
       input.threadContext,
       input.ownerId,
     )
