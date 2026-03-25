@@ -238,6 +238,26 @@ export interface Database {
         }
         Update: Partial<Database['public']['Tables']['slack_user_cache']['Insert']>
       }
+      team_invite_links: {
+        Row: {
+          id: string
+          owner_id: string
+          code: string
+          is_active: boolean
+          max_joins: number
+          join_count: number
+          created_at: string
+        }
+        Insert: {
+          owner_id: string
+          code: string
+          is_active?: boolean
+          max_joins?: number
+          join_count?: number
+          created_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['team_invite_links']['Insert']>
+      }
       ai_settings: {
         Row: {
           id: string
@@ -326,4 +346,14 @@ export interface SlackUserCache {
   display_name: string
   avatar_url: string | null
   cached_at: string
+}
+
+export interface TeamInviteLink {
+  id: string
+  owner_id: string
+  code: string
+  is_active: boolean
+  max_joins: number
+  join_count: number
+  created_at: string
 }

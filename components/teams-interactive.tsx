@@ -1,10 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Plus, Save, Trash2, Edit2, X, Loader2, Check,
   AlertTriangle, Users, Route,
+  Link2 as LinkIcon, Copy, RefreshCw, XCircle, CheckCircle2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -95,6 +96,101 @@ export function TeamsClient({
   )
 }
 
+// -- Team Invite Section ------------------------------------------------------
+
+function TeamInviteSection() {
+  const [link, setLink] = useState<{ code: string; url: string; is_active: boolean; join_count: number; max_joins: number } | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/team-invite')
+      .then(r => r.json())
+      .then(data => { if (data.code) setLink(data) })
+      .finally(() => setLoading(false))
+  }, [])
+
+  async function generateLink() {
+    setLoading(true)
+    const res = await fetch('/api/team-invite')
+    const data = await res.json()
+    if (data.code) setLink(data)
+    setLoading(false)
+  }
+
+  async function copyLink() {
+    if (!link) return
+    await navigator.clipboard.writeText(link.url)
+    setCopied(true)
+    toast.success('Team invite link copied!')
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function regenerate() {
+    const res = await fetch('/api/team-invite', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'regenerate' }),
+    })
+    const data = await res.json()
+    if (data.code) { setLink(data); toast.success('New link generated') }
+  }
+
+  async function toggleActive() {
+    const res = await fetch('/api/team-invite', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'toggle' }),
+    })
+    const data = await res.json()
+    if (data.code) { setLink(data); toast.success(data.is_active ? 'Link activated' : 'Link deactivated') }
+  }
+
+  if (loading) return null
+
+  if (!link) {
+    return (
+      <div className="mb-4 p-3 rounded-lg border border-dashed border-border bg-muted/30 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium">Team Invite Link</p>
+          <p className="text-xs text-muted-foreground">Generate a link anyone can use to join your team</p>
+        </div>
+        <Button size="sm" onClick={generateLink}>
+          <LinkIcon className="size-3.5 mr-1" /> Generate
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mb-4 p-3 rounded-lg border bg-card">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium flex items-center gap-2">
+            Team Invite Link
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${link.is_active ? 'bg-green-500/10 text-green-600' : 'bg-red-500/10 text-red-600'}`}>
+              {link.is_active ? 'Active' : 'Inactive'}
+            </span>
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">{link.join_count}/{link.max_joins} members joined</p>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Button size="sm" variant="outline" onClick={copyLink} className="text-xs h-7">
+            {copied ? <Check className="size-3" /> : <Copy className="size-3 mr-1" />}
+            {copied ? 'Copied' : 'Copy'}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={regenerate} className="text-xs h-7 px-2" title="Generate new link">
+            <RefreshCw className="size-3" />
+          </Button>
+          <Button size="sm" variant="ghost" onClick={toggleActive} className="text-xs h-7 px-2" title={link.is_active ? 'Deactivate' : 'Activate'}>
+            {link.is_active ? <XCircle className="size-3 text-red-500" /> : <CheckCircle2 className="size-3 text-green-500" />}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // -- Members Tab --------------------------------------------------------------
 
 function MembersTab({ initialRoles }: { initialRoles: Role[] }) {
@@ -106,6 +202,7 @@ function MembersTab({ initialRoles }: { initialRoles: Role[] }) {
 
   return (
     <div className="space-y-4 mt-4">
+      <TeamInviteSection />
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Members</h2>

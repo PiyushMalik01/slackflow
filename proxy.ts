@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 
 // Paths that never need auth
 const PUBLIC_PATHS = new Set(['/', '/login', '/signup'])
-const PUBLIC_API_PREFIXES = ['/api/slack/', '/api/telegram/', '/api/health']
+const PUBLIC_PATH_PREFIXES = ['/join/']
+const PUBLIC_API_PREFIXES = ['/api/slack/', '/api/telegram/', '/api/health', '/api/team-invite/join']
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
@@ -19,6 +20,11 @@ export async function proxy(req: NextRequest) {
 
   // Public pages
   if (PUBLIC_PATHS.has(pathname)) return NextResponse.next()
+
+  // Public path prefixes (e.g. /join/*)
+  if (PUBLIC_PATH_PREFIXES.some((p) => pathname.startsWith(p))) {
+    return NextResponse.next()
+  }
 
   // Public API routes (Slack/Telegram webhooks)
   if (PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p))) {
