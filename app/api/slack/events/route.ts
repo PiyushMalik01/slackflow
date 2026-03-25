@@ -42,18 +42,25 @@ export async function POST(req: NextRequest) {
     try {
       const { getServiceClient } = await import('@/lib/db/client')
       const supabase = getServiceClient()
-      const { data: workspace } = await supabase
+      const { data: workspaces } = await supabase
         .from('workspaces')
         .select('id')
         .eq('slack_team_id', teamId)
-        .maybeSingle()
 
-      if (!workspace) {
+      if (!workspaces || workspaces.length === 0) {
         logger.warn({ teamId }, 'No workspace found for team')
         return
       }
 
-      await handleSlackMessage({ ...event, event_id: body.event_id }, workspace.id)
+      // Process for each user who has this workspace connected — data isolation via owner_id
+      for (const workspace of workspaces) {
+        try {
+          // Append workspace.id to event_id so idempotency dedup doesn't block the second user
+          await handleSlackMessage({ ...event, event_id: `${body.event_id}_${workspace.id}` }, workspace.id)
+        } catch (err) {
+          logger.error({ err, workspaceId: workspace.id }, 'Pipeline error for workspace')
+        }
+      }
 
       // Also process any due snooze reminders
       await processDueSnoozes().catch(() => {})

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { encrypt } from '@/lib/utils/security'
 import { upsertWorkspace } from '@/lib/db/queries'
-import { getServiceClient } from '@/lib/db/client'
 import { logger } from '@/lib/utils/logger'
 
 export async function GET(req: NextRequest) {
@@ -37,24 +36,6 @@ export async function GET(req: NextRequest) {
       // Pass the actual error code so user/developer can see it
       return NextResponse.redirect(
         new URL(`/dashboard/workspaces?error=oauth_failed&detail=${data.error}`, appUrl)
-      )
-    }
-
-    // Security: prevent a second user from hijacking an already-connected Slack workspace
-    const svc = getServiceClient()
-    const { data: existingWs } = await svc
-      .from('workspaces')
-      .select('id, owner_id')
-      .eq('slack_team_id', data.team.id)
-      .maybeSingle()
-
-    if (existingWs && existingWs.owner_id !== state) {
-      logger.warn({ teamId: data.team.id }, 'Slack workspace already connected by another account')
-      return NextResponse.redirect(
-        new URL(
-          '/dashboard/workspaces?error=workspace_taken&detail=This+Slack+workspace+is+already+connected+by+another+account',
-          appUrl
-        )
       )
     }
 

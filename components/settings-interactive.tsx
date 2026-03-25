@@ -6,7 +6,7 @@ import { useTheme } from 'next-themes'
 import {
   Plus, Save, Trash2, Edit2, X, Loader2,
   Tag, Sliders, CheckCircle2, XCircle, RefreshCw,
-  Brain, ExternalLink, Key, LogOut, Copy,
+  Brain, ExternalLink, Key, LogOut, Copy, Users,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -1110,7 +1110,6 @@ function PreferencesTab({ workspaces }: { workspaces: WorkspacePrefs[] }) {
 function WorkspacePrefsCard({ workspace }: { workspace: WorkspacePrefs }) {
   const router = useRouter()
   const [accentColor, setAccentColor] = useState(workspace.accent_color || '#3B82F6')
-  const [telegramGroupId, setTelegramGroupId] = useState(workspace.team_group_chat_id || '')
   const [digestTime, setDigestTime] = useState(workspace.daily_digest_time || '')
   const [saving, setSaving] = useState(false)
 
@@ -1122,7 +1121,6 @@ function WorkspacePrefsCard({ workspace }: { workspace: WorkspacePrefs }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           accent_color: accentColor,
-          team_group_chat_id: telegramGroupId || null,
           daily_digest_time: digestTime || null,
         }),
       })
@@ -1166,17 +1164,16 @@ function WorkspacePrefsCard({ workspace }: { workspace: WorkspacePrefs }) {
           </div>
         </div>
 
-        {/* Telegram group */}
+        {/* Telegram group — coming soon */}
         <div>
-          <label className="block text-xs font-medium mb-1.5">Telegram Group Chat ID</label>
-          <Input
-            value={telegramGroupId}
-            onChange={e => setTelegramGroupId(e.target.value)}
-            placeholder="e.g. -1001234567890"
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            Link a Telegram group for team-wide notifications.
-          </p>
+          <label className="block text-xs font-medium mb-1.5">Team Telegram Group</label>
+          <div className="flex items-center gap-2 rounded-lg border border-dashed border-border bg-muted/30 px-3 py-3">
+            <Users className="size-4 text-muted-foreground" />
+            <div>
+              <p className="text-sm text-muted-foreground">Team group notifications coming soon</p>
+              <p className="text-xs text-muted-foreground/70">A shared Telegram group will show real-time task assignments and status updates.</p>
+            </div>
+          </div>
         </div>
 
         {/* Daily digest */}

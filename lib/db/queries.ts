@@ -34,20 +34,9 @@ export async function getWorkspaceById(id: string) {
 export async function upsertWorkspace(workspace: WorkspaceInsert) {
   const db = getServiceClient()
 
-  // Security: check if this Slack workspace is already owned by a different user
-  const { data: existing } = await db
-    .from('workspaces')
-    .select('id, owner_id')
-    .eq('slack_team_id', workspace.slack_team_id)
-    .maybeSingle()
-
-  if (existing && existing.owner_id !== workspace.owner_id) {
-    throw new Error('This Slack workspace is already connected by another account')
-  }
-
   const { data, error } = await db
     .from('workspaces')
-    .upsert(workspace, { onConflict: 'slack_team_id' })
+    .upsert(workspace, { onConflict: 'owner_id,slack_team_id' })
     .select()
     .single()
   if (error) throw new DbError('workspace_upsert_failed', error.message)

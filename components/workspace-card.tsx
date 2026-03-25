@@ -167,14 +167,6 @@ export function WorkspaceCard({ workspace }: { workspace: Workspace }) {
             </div>
           )}
 
-          {/* Team group status */}
-          {workspace.team_group_chat_id && (
-            <div className="mx-4 mb-3 text-xs text-muted-foreground flex items-center gap-1.5">
-              <Radio className="size-3" />
-              Telegram team group linked
-            </div>
-          )}
-
           {/* Manage channels toggle */}
           <CardContent>
             <Button
