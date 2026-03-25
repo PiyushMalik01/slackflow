@@ -221,7 +221,7 @@ export function TaskCard({ task, categories, roles, templates, selected, onToggl
                       }
                     }}
                   >
-                    {assigning ? <Loader2 className="size-3 animate-spin" /> : 'Assign'}
+                    {assigning ? <Loader2 className="size-3 animate-spin" /> : task.role_id ? 'Reassign' : 'Assign'}
                   </Button>
                 )}
               </div>
@@ -259,13 +259,18 @@ export function TaskCard({ task, categories, roles, templates, selected, onToggl
                     const res = await fetch('/api/tasks', {
                       method: 'PUT',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ id: task.id, status: 'edited' }),
+                      body: JSON.stringify({
+                        id: task.id,
+                        edited_text: template.content,
+                        status: 'edited',
+                        send_to_slack: true,
+                      }),
                     })
                     if (res.ok) {
-                      toast.success(`Template "${template.name}" applied`)
+                      toast.success(`"${template.name}" sent to Slack`)
                       onTaskUpdated?.()
                     } else {
-                      toast.error('Failed to apply template')
+                      toast.error('Failed to send reply')
                     }
                     e.target.value = ''
                   }}
@@ -275,6 +280,25 @@ export function TaskCard({ task, categories, roles, templates, selected, onToggl
                     <option key={t.id} value={t.id}>{t.name}</option>
                   ))}
                 </select>
+              )}
+
+              {/* Direct send button for tasks with a draft that haven't been sent yet */}
+              {task.draft_text && task.status !== 'sent' && (
+                <Button variant="outline" size="sm" className="text-xs h-7" onClick={async () => {
+                  const res = await fetch('/api/tasks', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: task.id, send_to_slack: true }),
+                  })
+                  if (res.ok) {
+                    toast.success('Reply sent to Slack')
+                    onTaskUpdated?.()
+                  } else {
+                    toast.error('Failed to send')
+                  }
+                }}>
+                  Send to Slack
+                </Button>
               )}
 
               {/* Dismiss — only show when relevant */}

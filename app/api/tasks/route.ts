@@ -10,6 +10,8 @@ const updateSchema = z.object({
   category: z.string().optional(),
   status: z.enum(['pending', 'draft_ready', 'approved', 'edited', 'dismissed', 'sent', 'failed']).optional(),
   role_id: z.string().uuid().optional().nullable(),
+  edited_text: z.string().optional(),
+  send_to_slack: z.boolean().optional(),
 })
 
 export async function PUT(req: NextRequest) {
@@ -26,42 +28,67 @@ export async function PUT(req: NextRequest) {
     const { id, ...updates } = parsed.data
     const svc = getServiceClient()
 
+    // Get the FULL task before updating (to know old role_id and for notifications)
+    const { data: fullTask } = await svc.from('tasks').select('*, workspaces(name), categories(emoji)').eq('id', id).single()
+    if (!fullTask) return json403('Task not found')
+
     // Verify task belongs to user's workspace
-    const { data: task } = await svc.from('tasks').select('id, workspace_id').eq('id', id).maybeSingle()
-    if (!task) return json403('Task not found')
-    const { data: ws } = await svc.from('workspaces').select('id').eq('id', task.workspace_id).eq('owner_id', user.id).maybeSingle()
+    const { data: ws } = await svc.from('workspaces').select('id').eq('id', fullTask.workspace_id).eq('owner_id', user.id).maybeSingle()
     if (!ws) return json403('Not authorized')
 
-    await svc.from('tasks').update(updates).eq('id', id)
+    // Store old role for reassignment notification
+    const oldRoleId = fullTask.role_id
+
+    // Strip non-column flags before writing to DB
+    const { send_to_slack, ...dbUpdates } = updates
+    await svc.from('tasks').update(dbUpdates).eq('id', id)
 
     // Log the activity
     await svc.from('activity_log').insert({
-      workspace_id: task.workspace_id,
+      workspace_id: fullTask.workspace_id,
       task_id: id,
       actor: 'admin',
       action: 'task_updated',
-      details: updates,
+      details: dbUpdates,
     })
 
-    // If role_id was updated, send Telegram notification to the new assignee
-    if (updates.role_id) {
-      try {
-        const { data: updatedTask } = await svc.from('tasks').select('*, workspaces(name), categories(emoji)').eq('id', id).single()
-        const { data: role } = await svc.from('roles').select('telegram_chat_id, name').eq('id', updates.role_id).maybeSingle()
+    // If role_id was updated, handle notifications
+    if (updates.role_id && fullTask) {
+      // Notify OLD assignee that task was reassigned (if there was one and it changed)
+      if (oldRoleId && oldRoleId !== updates.role_id) {
+        try {
+          const { data: oldRole } = await svc.from('roles').select('telegram_chat_id, name').eq('id', oldRoleId).maybeSingle()
+          const { data: newRole } = await svc.from('roles').select('name').eq('id', updates.role_id).maybeSingle()
 
-        if (role?.telegram_chat_id && updatedTask) {
+          if (oldRole?.telegram_chat_id) {
+            const { bot } = await import('@/lib/telegram/bot')
+            await bot.sendMessage(
+              oldRole.telegram_chat_id,
+              `↩ <b>Task reassigned</b>\n\nThe task from <b>#${fullTask.channel}</b> has been reassigned to <b>${newRole?.name || 'another member'}</b>. No action needed from you.`,
+              { parse_mode: 'HTML' }
+            )
+          }
+        } catch (err) {
+          console.error('Failed to notify old assignee:', err)
+        }
+      }
+
+      // Notify NEW assignee
+      try {
+        const { data: newRole } = await svc.from('roles').select('telegram_chat_id, name').eq('id', updates.role_id).maybeSingle()
+        if (newRole?.telegram_chat_id) {
           const { notifyAssignee } = await import('@/lib/telegram/notify')
           const msgId = await notifyAssignee({
-            chatId: role.telegram_chat_id,
+            chatId: newRole.telegram_chat_id,
             taskId: id,
-            workspaceName: (updatedTask.workspaces as { name: string } | null)?.name || 'Unknown',
-            channel: updatedTask.channel,
-            senderName: updatedTask.sender_name || 'Unknown',
-            category: updatedTask.category || 'General',
-            categoryEmoji: (updatedTask.categories as { emoji: string } | null)?.emoji || '',
-            confidence: updatedTask.category_confidence || 0,
-            originalText: updatedTask.original_text,
-            draftText: updatedTask.draft_text,
+            workspaceName: (fullTask.workspaces as { name: string } | null)?.name || 'Unknown',
+            channel: fullTask.channel,
+            senderName: fullTask.sender_name || 'Unknown',
+            category: fullTask.category || 'General',
+            categoryEmoji: (fullTask.categories as { emoji: string } | null)?.emoji || '',
+            confidence: fullTask.category_confidence || 0,
+            originalText: fullTask.original_text,
+            draftText: fullTask.draft_text,
           })
           if (msgId) {
             await svc.from('tasks').update({ telegram_message_id: msgId }).eq('id', id)
@@ -69,6 +96,16 @@ export async function PUT(req: NextRequest) {
         }
       } catch (err) {
         console.error('Failed to send assignment notification:', err)
+      }
+    }
+
+    // If send_to_slack flag is set, post the reply to Slack
+    if (send_to_slack) {
+      try {
+        const { postReplyToSlack } = await import('@/lib/slack/egress')
+        await postReplyToSlack(id)
+      } catch (err) {
+        console.error('Failed to post to Slack:', err)
       }
     }
 
