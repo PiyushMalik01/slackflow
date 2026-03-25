@@ -21,6 +21,7 @@ interface PipelineResult {
   confidence: number
   promptVersion: string
   actionable?: boolean
+  additionalTaskIds?: string[]
 }
 
 export async function runAiPipeline(input: PipelineInput): Promise<PipelineResult> {
@@ -67,7 +68,7 @@ export async function runAiPipeline(input: PipelineInput): Promise<PipelineResul
 
     // If AI determined the message is NOT actionable, delete the pending task
     if (!result.actionable) {
-      log.info({ reasoning: result.reasoning }, 'Message not actionable, removing task')
+      log.info({ reasoning: result.intents[0]?.reasoning }, 'Message not actionable, removing task')
       await supabase.from('tasks').delete().eq('id', input.taskId)
       return {
         category: 'General',
@@ -79,22 +80,50 @@ export async function runAiPipeline(input: PipelineInput): Promise<PipelineResul
       }
     }
 
-    // Resolve category ID
+    const intents = result.intents
+
+    // First intent updates the existing task
+    const primary = intents[0]
     const matchedCategory = categories.find(
-      (c) => c.name.toLowerCase() === result.category.toLowerCase()
+      (c) => c.name.toLowerCase() === primary.category.toLowerCase()
     )
     const categoryId = matchedCategory?.id || null
 
     // Update task with results
     await supabase.from('tasks').update({
-      category: result.category,
+      category: primary.category,
       category_id: categoryId,
-      draft_text: result.draft,
+      draft_text: primary.draft,
       ai_model: process.env.AI_MODEL || 'gpt-4o-mini',
       ai_prompt_version: result.promptVersion,
       draft_generated_at: new Date().toISOString(),
       status: 'draft_ready',
     }).eq('id', input.taskId)
+
+    // Additional intents create new tasks
+    const additionalTaskIds: string[] = []
+    for (let i = 1; i < intents.length; i++) {
+      const intent = intents[i]
+      const cat = categories.find(c => c.name.toLowerCase() === intent.category.toLowerCase())
+
+      const { data: newTask } = await supabase.from('tasks').insert({
+        workspace_id: input.workspaceId,
+        channel: input.channel,
+        thread_ts: '',
+        original_text: intent.excerpt || input.message,
+        sender_name: input.senderName,
+        category: intent.category,
+        category_id: cat?.id || null,
+        draft_text: intent.draft,
+        status: 'draft_ready',
+        ai_model: process.env.AI_MODEL || 'gpt-4o-mini',
+        ai_prompt_version: result.promptVersion,
+        draft_generated_at: new Date().toISOString(),
+        thread_context: input.threadContext,
+      }).select('id').single()
+
+      if (newTask) additionalTaskIds.push(newTask.id)
+    }
 
     // Log activity
     await supabase.from('activity_log').insert({
@@ -103,20 +132,27 @@ export async function runAiPipeline(input: PipelineInput): Promise<PipelineResul
       actor: 'ai',
       action: 'draft_generated',
       details: {
-        category: result.category,
-        confidence: result.confidence,
+        category: primary.category,
+        confidence: primary.confidence,
         model: process.env.AI_MODEL || 'gpt-4o-mini',
+        total_intents: intents.length,
+        additional_tasks: additionalTaskIds,
       },
     })
 
-    log.info({ category: result.category, confidence: result.confidence }, 'AI pipeline complete')
+    log.info(
+      { category: primary.category, confidence: primary.confidence, totalIntents: intents.length },
+      'AI pipeline complete',
+    )
 
     return {
-      category: result.category,
+      category: primary.category,
       categoryId,
-      draft: result.draft,
-      confidence: result.confidence,
+      draft: primary.draft,
+      confidence: primary.confidence,
       promptVersion: result.promptVersion,
+      actionable: true,
+      additionalTaskIds,
     }
   } catch (err) {
     log.error({ err }, 'AI pipeline failed, using fallback')

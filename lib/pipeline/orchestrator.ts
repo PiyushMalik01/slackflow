@@ -248,6 +248,44 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
     }
   }
 
+  // Route additional tasks from multi-intent detection
+  if (aiResult.additionalTaskIds?.length) {
+    for (const additionalTaskId of aiResult.additionalTaskIds) {
+      const { data: addTask } = await supabase.from('tasks').select('category_id, category, original_text, draft_text, category_confidence').eq('id', additionalTaskId).maybeSingle()
+      if (!addTask) continue
+
+      // Resolve role for this category
+      let addRole: typeof role = null
+      if (addTask.category_id) {
+        addRole = await resolveRole(workspaceId, addTask.category_id)
+      }
+
+      // Update task with role
+      await supabase.from('tasks').update({ role_id: addRole?.id || null }).eq('id', additionalTaskId)
+
+      // Notify assignee
+      if (addRole?.telegram_chat_id) {
+        try {
+          const addCat = categories.find(c => c.id === addTask.category_id)
+          await notifyAssignee({
+            chatId: addRole.telegram_chat_id,
+            taskId: additionalTaskId,
+            workspaceName: workspace.name,
+            channel: channelName,
+            senderName,
+            category: addTask.category || 'General',
+            categoryEmoji: addCat?.emoji || '',
+            confidence: addTask.category_confidence || 0,
+            originalText: addTask.original_text,
+            draftText: addTask.draft_text,
+          })
+        } catch (err) {
+          log.error({ err }, 'Failed to notify for additional task')
+        }
+      }
+    }
+  }
+
   // Notify team group (non-blocking)
   if (workspace.team_group_chat_id) {
     try {

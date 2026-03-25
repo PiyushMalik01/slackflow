@@ -57,7 +57,7 @@ export async function classifyAndDraft(
       }).join('\n')
     : 'No team members configured yet.'
 
-  const promptVersion = 'v6.0-flexible-categories'
+  const promptVersion = 'v7.0-multi-intent'
 
   const systemPrompt = `You are the AI engine behind SlackFlow — an internal task routing system. You decide TWO things: (1) whether a message is actionable at all, and (2) if so, how to classify and respond to it.
 
@@ -117,6 +117,20 @@ When in doubt, lean towards FALSE.
 
 ## STEP 2: If actionable, classify it
 
+A single message may contain MULTIPLE distinct requests or issues. If so, split them into separate intents.
+
+Examples:
+- "fix the login bug and add dark mode" → TWO intents: Bug + Feature
+- "the API is slow and the dashboard looks broken on mobile" → TWO intents: Backend + Frontend/Design
+- "can you update the pricing page" → ONE intent: single category
+
+Rules for splitting:
+- Only split when there are genuinely DIFFERENT requests that go to DIFFERENT people/categories
+- Don't split if it's the same issue described in different words
+- Max 5 intents per message (if more, pick the top 5)
+- Each intent gets its own draft, category, and confidence
+- The "excerpt" field should contain the part of the original message this intent is about
+
 Pick the EXACT category name from the list above. Your choice determines who gets notified.
 
 Rules:
@@ -141,12 +155,21 @@ Posted as a Slack thread reply visible to the client:
 Return JSON:
 {
   "actionable": true/false,
-  "category": "<exact category name from the list>",
-  "confidence": <0.0-1.0>,
-  "reasoning": "<1 sentence: why this category>",
-  "draft": "<1-2 sentence acknowledgment, or empty string if not actionable>",
-  "tone": "<professional|friendly|urgent>"
-}`
+  "intents": [
+    {
+      "category": "<exact category name>",
+      "confidence": <0.0-1.0>,
+      "reasoning": "<1 sentence>",
+      "draft": "<1-2 sentence acknowledgment>",
+      "tone": "<professional|friendly|urgent>",
+      "excerpt": "<the part of the message this intent covers>"
+    }
+  ]
+}
+
+For non-actionable messages: actionable=false, intents=[{"category":"General","confidence":0,"reasoning":"...","draft":"","tone":"professional"}]
+For single-intent messages: intents array has 1 item
+For multi-intent messages: intents array has 2-5 items`
 
   const userContent = threadContext
     ? `Thread context:\n${threadContext}\n\nNew message from ${senderName} in #${channel}:\n${message}`
@@ -160,20 +183,23 @@ Return JSON:
       { role: 'user', content: userContent },
     ],
     response_format: { type: 'json_object' },
-    max_tokens: 600,
+    max_tokens: 1200,
     temperature: 0.4,
   })
 
   const raw = response.choices[0]?.message?.content || '{}'
   const parsed = classifyAndDraftSchema.parse(JSON.parse(raw))
 
-  const validCategory = categories.find(
-    (c) => c.name.toLowerCase() === parsed.category.toLowerCase()
-  )
-  if (!validCategory) {
-    logger.warn({ returnedCategory: parsed.category }, 'AI returned unknown category, falling back to General')
-    parsed.category = 'General'
-    parsed.confidence = 0.3
+  // Validate categories for each intent
+  for (const intent of parsed.intents) {
+    const validCategory = categories.find(
+      (c) => c.name.toLowerCase() === intent.category.toLowerCase()
+    )
+    if (!validCategory) {
+      logger.warn({ returnedCategory: intent.category }, 'AI returned unknown category, falling back to General')
+      intent.category = 'General'
+      intent.confidence = 0.3
+    }
   }
 
   return {
