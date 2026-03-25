@@ -88,6 +88,7 @@ export interface Database {
           status: TaskStatus
           role_id: string | null
           telegram_message_id: number | null
+          snooze_until: string | null
           ai_model: string | null
           ai_tokens_used: number | null
           ai_prompt_version: string | null
@@ -105,6 +106,7 @@ export interface Database {
           category_id?: string | null
           ai_prompt_version?: string | null
           thread_context?: string | null
+          snooze_until?: string | null
         }
         Update: Partial<Database['public']['Tables']['tasks']['Insert']>
       }

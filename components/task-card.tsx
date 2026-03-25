@@ -48,6 +48,10 @@ export function TaskCard({ task, categories, roles, templates, selected, onToggl
   const [expanded, setExpanded] = useState(false)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
 
+  // Assign flow state
+  const [pendingRoleId, setPendingRoleId] = useState('')
+  const [assigning, setAssigning] = useState(false)
+
   // New member form state
   const [showNewMember, setShowNewMember] = useState(false)
   const [newName, setNewName] = useState('')
@@ -172,38 +176,55 @@ export function TaskCard({ task, categories, roles, templates, selected, onToggl
 
             {/* Single compact action bar */}
             <div className="flex items-center gap-2 flex-wrap border-t pt-3">
-              {/* Assign/Reassign dropdown */}
-              <select
-                className="text-xs border rounded-md px-2.5 py-1.5 bg-background w-full sm:w-auto sm:min-w-[160px]"
-                value={task.role_id || ''}
-                onChange={async (e) => {
-                  const roleId = e.target.value
-                  if (!roleId) return
-                  const res = await fetch('/api/tasks', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: task.id, role_id: roleId }),
-                  })
-                  if (res.ok) {
-                    const role = roles?.find(r => r.id === roleId)
-                    // Auto-route if category is set
-                    if (task.category_id && task.workspace_id) {
-                      await fetch('/api/workspace-roles', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ workspace_id: task.workspace_id, category_id: task.category_id, role_id: roleId }),
-                      })
-                    }
-                    toast.success(`Assigned to ${role?.name || 'member'}`)
-                    onTaskUpdated?.()
-                  }
-                }}
-              >
-                <option value="">Assign to...</option>
-                {roles?.map(r => (
-                  <option key={r.id} value={r.id}>{r.name} ({r.type})</option>
-                ))}
-              </select>
+              {/* Assign/Reassign dropdown + button */}
+              <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                <select
+                  className="text-xs border rounded-md px-2.5 py-1.5 bg-background w-full sm:w-auto sm:min-w-[160px]"
+                  value={pendingRoleId}
+                  onChange={(e) => setPendingRoleId(e.target.value)}
+                >
+                  <option value="">Assign to...</option>
+                  {roles?.map(r => (
+                    <option key={r.id} value={r.id}>{r.name} ({r.type})</option>
+                  ))}
+                </select>
+                {pendingRoleId && (
+                  <Button
+                    size="sm"
+                    className="text-xs h-7"
+                    disabled={assigning}
+                    onClick={async () => {
+                      setAssigning(true)
+                      try {
+                        const res = await fetch('/api/tasks', {
+                          method: 'PUT',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ id: task.id, role_id: pendingRoleId }),
+                        })
+                        if (res.ok) {
+                          const role = roles?.find(r => r.id === pendingRoleId)
+                          if (task.category_id && task.workspace_id) {
+                            await fetch('/api/workspace-roles', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ workspace_id: task.workspace_id, category_id: task.category_id, role_id: pendingRoleId }),
+                            })
+                          }
+                          toast.success(`Assigned to ${role?.name || 'member'} — notification sent`)
+                          setPendingRoleId('')
+                          onTaskUpdated?.()
+                        } else {
+                          toast.error('Failed to assign')
+                        }
+                      } finally {
+                        setAssigning(false)
+                      }
+                    }}
+                  >
+                    {assigning ? <Loader2 className="size-3 animate-spin" /> : 'Assign'}
+                  </Button>
+                )}
+              </div>
 
               {/* Recategorize dropdown */}
               <select

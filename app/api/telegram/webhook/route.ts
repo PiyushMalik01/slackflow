@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { verifyTelegramWebhook } from '@/lib/utils/security'
-import { handleApprove, handleEdit, handleDismiss, handleViewOriginal, handleEditReply, handleEditConfirm, handleEditCancel } from '@/lib/telegram/callbacks'
+import { handleApprove, handleEdit, handleDismiss, handleViewOriginal, handleEditReply, handleEditConfirm, handleEditCancel, handleSnooze, handleReassign } from '@/lib/telegram/callbacks'
 import { handleStartCommand, handlePendingCommand, handleStatusCommand, handleHelpCommand, handleBoardCommand, handleSummaryCommand } from '@/lib/telegram/commands'
 import { logger } from '@/lib/utils/logger'
 
@@ -72,6 +72,12 @@ export async function POST(req: NextRequest) {
           break
         case 'cancel_edit':
           await handleEditCancel(taskId, chatId, messageId)
+          break
+        case 'snooze':
+          await handleSnooze(taskId, chatId, messageId)
+          break
+        case 'reassign':
+          await handleReassign(taskId, chatId, messageId)
           break
       }
 

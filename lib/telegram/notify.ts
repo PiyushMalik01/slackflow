@@ -51,7 +51,10 @@ export async function notifyAssignee(params: NotifyParams): Promise<number | nul
           ],
           [
             { text: 'Dismiss', callback_data: `${taskId}:dismiss` },
-            { text: 'View Original', callback_data: `${taskId}:view_original` },
+            { text: 'Snooze 1h', callback_data: `${taskId}:snooze` },
+          ],
+          [
+            { text: 'Not mine \u21a9', callback_data: `${taskId}:reassign` },
           ],
         ],
       },

@@ -43,6 +43,35 @@ export async function PUT(req: NextRequest) {
       details: updates,
     })
 
+    // If role_id was updated, send Telegram notification to the new assignee
+    if (updates.role_id) {
+      try {
+        const { data: updatedTask } = await svc.from('tasks').select('*, workspaces(name), categories(emoji)').eq('id', id).single()
+        const { data: role } = await svc.from('roles').select('telegram_chat_id, name').eq('id', updates.role_id).maybeSingle()
+
+        if (role?.telegram_chat_id && updatedTask) {
+          const { notifyAssignee } = await import('@/lib/telegram/notify')
+          const msgId = await notifyAssignee({
+            chatId: role.telegram_chat_id,
+            taskId: id,
+            workspaceName: (updatedTask.workspaces as { name: string } | null)?.name || 'Unknown',
+            channel: updatedTask.channel,
+            senderName: updatedTask.sender_name || 'Unknown',
+            category: updatedTask.category || 'General',
+            categoryEmoji: (updatedTask.categories as { emoji: string } | null)?.emoji || '',
+            confidence: updatedTask.category_confidence || 0,
+            originalText: updatedTask.original_text,
+            draftText: updatedTask.draft_text,
+          })
+          if (msgId) {
+            await svc.from('tasks').update({ telegram_message_id: msgId }).eq('id', id)
+          }
+        }
+      } catch (err) {
+        console.error('Failed to send assignment notification:', err)
+      }
+    }
+
     return jsonOk({ success: true })
   } catch {
     return json500()

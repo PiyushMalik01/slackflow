@@ -164,3 +164,65 @@ export async function handleEditCancel(taskId: string, chatId: number, messageId
   if (session) await deleteSession(session.id)
   await bot.editMessageText('Edit cancelled.', { chat_id: chatId, message_id: messageId })
 }
+
+export async function handleSnooze(taskId: string, chatId: number, messageId: number): Promise<void> {
+  const supabase = getServiceClient()
+
+  const remindAt = new Date(Date.now() + 60 * 60 * 1000).toISOString()
+  await supabase.from('tasks').update({
+    snooze_until: remindAt,
+  }).eq('id', taskId)
+
+  await bot.editMessageText('\u23f0 Snoozed \u2014 will remind you in 1 hour.', {
+    chat_id: chatId,
+    message_id: messageId,
+  })
+
+  await supabase.from('activity_log').insert({
+    workspace_id: (await supabase.from('tasks').select('workspace_id').eq('id', taskId).maybeSingle()).data?.workspace_id,
+    task_id: taskId,
+    actor: 'telegram',
+    action: 'task_snoozed',
+    details: { remind_at: remindAt },
+  })
+}
+
+export async function handleReassign(taskId: string, chatId: number, messageId: number): Promise<void> {
+  const supabase = getServiceClient()
+
+  await supabase.from('tasks').update({
+    role_id: null,
+    status: 'pending' as const,
+  }).eq('id', taskId)
+
+  await bot.editMessageText('\u21a9 Task unassigned \u2014 admin will reassign it.', {
+    chat_id: chatId,
+    message_id: messageId,
+  })
+
+  const { data: task } = await supabase.from('tasks').select('workspace_id, channel, category, sender_name').eq('id', taskId).maybeSingle()
+  if (task) {
+    await supabase.from('activity_log').insert({
+      workspace_id: task.workspace_id,
+      task_id: taskId,
+      actor: 'telegram',
+      action: 'task_reassign_requested',
+      details: { reason: 'Team member declined' },
+    })
+
+    const { data: workspace } = await supabase.from('workspaces').select('team_group_chat_id, name').eq('id', task.workspace_id).maybeSingle()
+    const { data: role } = await supabase.from('roles').select('name').eq('telegram_chat_id', String(chatId)).maybeSingle()
+    if (workspace?.team_group_chat_id) {
+      await notifyTeamGroup({
+        groupChatId: workspace.team_group_chat_id,
+        workspaceName: workspace.name,
+        channel: task.channel,
+        category: task.category || 'General',
+        categoryEmoji: '',
+        assigneeName: role?.name || 'Team Member',
+        senderName: task.sender_name || 'Unknown',
+        action: 'dismissed',
+      })
+    }
+  }
+}
