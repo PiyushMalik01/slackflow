@@ -12,6 +12,7 @@ import {
   Settings,
   LogOut,
   Menu,
+  HelpCircle,
 } from 'lucide-react'
 import { createBrowserClient } from '@/lib/db/browser-client'
 import { BRAND_LOGO_SIZES, PlatformLogo } from '@/components/platform-logo'
@@ -83,9 +84,19 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         })}
       </nav>
 
-      {/* Theme toggle + Sign out */}
+      {/* Theme toggle + Setup Guide + Sign out */}
       <div className="border-t p-3 space-y-0.5">
         <ThemeToggle className="flex w-full items-center justify-start gap-2.5 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground" />
+        <button
+          onClick={() => {
+            localStorage.removeItem('slackflow_onboarding_complete')
+            window.location.href = '/dashboard'
+          }}
+          className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <HelpCircle className="h-3.5 w-3.5" />
+          Setup Guide
+        </button>
         <button
           onClick={handleSignOut}
           className="flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
