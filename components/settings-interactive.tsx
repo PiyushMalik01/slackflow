@@ -475,7 +475,7 @@ function CategoriesTab({ initialCategories }: { initialCategories: Category[] })
         <div>
           <h2 className="text-lg font-semibold">Categories</h2>
           <p className="text-sm text-muted-foreground">
-            Organize incoming messages by category. Categories are used by the AI classifier.
+            Define how incoming messages get classified and routed. The AI reads your category names, descriptions, and routing to decide where each message goes.
           </p>
         </div>
         <Button size="sm" onClick={() => setShowAddForm(true)} disabled={showAddForm}>
@@ -483,6 +483,33 @@ function CategoriesTab({ initialCategories }: { initialCategories: Category[] })
           Add Category
         </Button>
       </div>
+
+      {/* Examples card — shown only when few categories exist */}
+      {categories.length <= 3 && !showAddForm && (
+        <div className="rounded-lg border bg-muted/30 p-4 text-sm space-y-3">
+          <p className="font-medium text-xs text-muted-foreground uppercase tracking-wider">How categories work</p>
+          <p className="text-muted-foreground text-xs">
+            You can create <strong>any type of category</strong> — the AI adapts automatically. It reads the name, description, and who it routes to, then matches messages intelligently.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+            <div className="rounded-md border bg-background p-2.5">
+              <p className="font-medium mb-1">By type</p>
+              <p className="text-muted-foreground">Bug, Feature, Support, Urgent</p>
+            </div>
+            <div className="rounded-md border bg-background p-2.5">
+              <p className="font-medium mb-1">By person</p>
+              <p className="text-muted-foreground">Rahul's Tasks, Design Team, Alice</p>
+            </div>
+            <div className="rounded-md border bg-background p-2.5">
+              <p className="font-medium mb-1">By domain</p>
+              <p className="text-muted-foreground">Frontend, Backend, DevOps, Billing</p>
+            </div>
+          </div>
+          <p className="text-muted-foreground text-[11px]">
+            Tip: The description helps the AI understand what belongs in each category. The more specific, the better the classification.
+          </p>
+        </div>
+      )}
 
       {showAddForm && (
         <CategoryForm
@@ -918,7 +945,7 @@ function CategoryForm({
               <Input
                 value={name}
                 onChange={e => setName(e.target.value)}
-                placeholder="e.g. Bug, Feature, Urgent"
+                placeholder="e.g. Bug, Frontend, Rahul's Tasks"
                 required
               />
             </div>
@@ -954,7 +981,7 @@ function CategoryForm({
             <Input
               value={description}
               onChange={e => setDescription(e.target.value)}
-              placeholder="Brief description of when this category applies"
+              placeholder="Describe what messages belong here — the AI uses this to classify accurately"
             />
           </div>
           <div>
