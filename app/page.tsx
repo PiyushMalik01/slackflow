@@ -124,16 +124,17 @@ function FlyingPlanes() {
         id: i,
         goingLeft,
         // Some start already on screen so they're visible immediately
+        // First 9 planes start scattered across the visible screen, rest from edges
         startX: goingLeft
-          ? (i < 4 ? 20 + Math.random() * 60 : 105 + Math.random() * 10)
-          : (i < 4 ? 20 + Math.random() * 60 : -15 - Math.random() * 10),
+          ? (i < 9 ? 10 + (i * 10) + Math.random() * 5 : 105 + Math.random() * 10)
+          : (i < 9 ? 10 + (i * 10) + Math.random() * 5 : -15 - Math.random() * 10),
         endX: goingLeft ? -15 - Math.random() * 10 : 105 + Math.random() * 10,
         startY: yPositions[i % yPositions.length] + (Math.random() * 8 - 4),
         size: 35 + Math.random() * 50,
         tilt: -8 + Math.random() * 16,
         opacity: 0.15 + Math.random() * 0.2,
         duration: 40 + Math.random() * 50,
-        delay: i < 4 ? 0 : i * 1.5 + Math.random() * 3,
+        delay: i < 9 ? 0 : Math.random() * 5,
         bobAmount: 12 + Math.random() * 25,
         bobSpeed: 5 + Math.random() * 7,
       }
