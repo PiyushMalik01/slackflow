@@ -1,6 +1,7 @@
 import { getAuthUser, getServiceClient } from '@/lib/db/client'
 import { getCategories, seedDefaultCategories } from '@/lib/db/queries'
 import { SettingsClient } from '@/components/settings-interactive'
+import { GuideTip } from '@/components/guide-tip'
 
 export const metadata = { title: 'Settings' }
 
@@ -47,6 +48,12 @@ export default async function SettingsPage() {
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground">Manage categories, preferences, and AI configuration.</p>
       </div>
+      <GuideTip
+        id="settings-customize-categories"
+        title="Customize your categories"
+        description="Add draft prompts so the AI knows how to respond for each category. Tailor categories to match your workflow."
+      />
+
       <SettingsClient
         initialCategories={categories || []}
         workspaces={workspaces || []}

@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { WorkspaceCard } from '@/components/workspace-card'
+import { GuideTip } from '@/components/guide-tip'
 
 export const metadata = { title: 'Workspaces' }
 
@@ -65,6 +66,21 @@ export default async function WorkspacesPage({
           <XCircle className="size-4 flex-shrink-0" />
           Failed to connect workspace. Please try again.
         </div>
+      )}
+
+      {/* Contextual guide tips */}
+      {!workspaces || workspaces.length === 0 ? (
+        <GuideTip
+          id="workspaces-no-workspace"
+          title="Connect a Slack workspace to get started"
+          description="Click 'Add to Slack' above to connect your first workspace."
+        />
+      ) : (
+        <GuideTip
+          id="workspaces-toggle-channels"
+          title="Toggle on channels to start monitoring"
+          description="The bot will automatically join and begin routing messages from enabled channels."
+        />
       )}
 
       {/* Workspace list */}

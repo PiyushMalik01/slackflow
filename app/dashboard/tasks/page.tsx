@@ -6,6 +6,7 @@ import Link from 'next/link'
 import type { TaskStatus } from '@/lib/db/types'
 import { TaskFilters } from './task-filters'
 import { TaskListClient } from './task-list-client'
+import { GuideTip } from '@/components/guide-tip'
 
 export const metadata = { title: 'Tasks' }
 
@@ -143,6 +144,15 @@ export default async function TasksPage({
           )}
         </div>
       </div>
+
+      {/* Contextual guide tip */}
+      {mappedTasks.length === 0 && !params.status && !params.category && !params.search && (
+        <GuideTip
+          id="tasks-empty"
+          title="No tasks yet"
+          description="Tasks will appear here when messages come in from your monitored Slack channels. Make sure you've connected a workspace and toggled on channels."
+        />
+      )}
 
       {/* Filters */}
       <TaskFilters

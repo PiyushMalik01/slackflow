@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CategoryBadge } from '@/components/category-badge'
 import { StatusPill } from '@/components/status-pill'
 import { DashboardCharts } from '@/components/dashboard-charts'
-import { OnboardingWizard } from '@/components/onboarding-wizard'
+import { GuideTip } from '@/components/guide-tip'
 import { ListChecks, TrendingUp, Clock, Hash, ArrowRight, CheckCircle2, Circle } from 'lucide-react'
 import Link from 'next/link'
 
@@ -126,12 +126,14 @@ export default async function DashboardPage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
-      {/* Onboarding Wizard for first-time users */}
-      <OnboardingWizard
-        hasWorkspace={setup.hasWorkspace}
-        hasRoles={setup.hasRoles}
-        hasCategories={setup.hasCategories}
-      />
+      {/* Contextual guide tip for new users */}
+      {!setup.hasWorkspace && (
+        <GuideTip
+          id="dashboard-connect-workspace"
+          title="Connect your first Slack workspace"
+          description="Connect a Slack workspace to start routing messages automatically."
+        />
+      )}
 
       {/* Header */}
       <div>
