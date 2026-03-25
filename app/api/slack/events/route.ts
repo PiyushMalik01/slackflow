@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { after } from 'next/server'
 import { verifySlackSignature } from '@/lib/utils/security'
 import { handleSlackMessage } from '@/lib/pipeline/orchestrator'
+import { processDueSnoozes } from '@/lib/telegram/snooze-processor'
 import { logger } from '@/lib/utils/logger'
 
 export async function POST(req: NextRequest) {
@@ -53,6 +54,9 @@ export async function POST(req: NextRequest) {
       }
 
       await handleSlackMessage({ ...event, event_id: body.event_id }, workspace.id)
+
+      // Also process any due snooze reminders
+      await processDueSnoozes().catch(() => {})
     } catch (err) {
       logger.error({ err }, 'Pipeline error in after()')
     }

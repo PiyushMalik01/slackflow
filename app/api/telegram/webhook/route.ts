@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { verifyTelegramWebhook } from '@/lib/utils/security'
 import { handleApprove, handleEdit, handleDismiss, handleViewOriginal, handleEditReply, handleEditConfirm, handleEditCancel, handleSnooze, handleReassign } from '@/lib/telegram/callbacks'
 import { handleStartCommand, handlePendingCommand, handleStatusCommand, handleHelpCommand, handleBoardCommand, handleSummaryCommand } from '@/lib/telegram/commands'
+import { processDueSnoozes } from '@/lib/telegram/snooze-processor'
 import { logger } from '@/lib/utils/logger'
 
 export async function POST(req: NextRequest) {
@@ -10,6 +11,9 @@ export async function POST(req: NextRequest) {
   if (!verifyTelegramWebhook(secretHeader)) {
     return new Response('Forbidden', { status: 403 })
   }
+
+  // Process any due snooze reminders on every webhook call
+  try { await processDueSnoozes() } catch { /* don't block main flow */ }
 
   try {
     const body = await req.json()
