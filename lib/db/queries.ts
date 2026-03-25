@@ -317,7 +317,8 @@ export async function getRecentTasks(ownerId: string, workspaceId?: string, limi
   } else {
     const { data: workspaces } = await supabase.from('workspaces').select('id').eq('owner_id', ownerId)
     const wsIds = workspaces?.map(w => w.id) || []
-    if (wsIds.length > 0) query = query.in('workspace_id', wsIds)
+    if (wsIds.length === 0) return []
+    query = query.in('workspace_id', wsIds)
   }
 
   const { data } = await query
