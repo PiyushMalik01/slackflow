@@ -30,8 +30,7 @@ export async function notifyAssignee(params: NotifyParams): Promise<number | nul
 
   let message = `<b>${categoryEmoji} ${escapeHtml(category)}</b> — ${escapeHtml(workspaceName)}\n`
   message += `Channel: <b>#${escapeHtml(channel)}</b>\n`
-  message += `From: ${escapeHtml(senderName)}\n`
-  message += `Confidence: ${confidenceBar} (${Math.round(confidence * 100)}%)\n\n`
+  message += `From: ${escapeHtml(senderName)}\n\n`
   message += `<b>Message:</b>\n${escapeHtml(originalText.substring(0, 300))}${originalText.length > 300 ? '...' : ''}\n`
 
   if (draftText) {

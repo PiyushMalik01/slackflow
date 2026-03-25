@@ -249,38 +249,44 @@ export function TaskCard({ task, categories, roles, templates, selected, onToggl
               </select>
 
               {/* Quick reply from template */}
-              {templates && templates.length > 0 && (
-                <select
-                  className="text-xs border rounded-md px-2.5 py-1.5 bg-background w-full sm:w-auto sm:min-w-[140px]"
-                  defaultValue=""
-                  onChange={async (e) => {
-                    const template = templates.find(t => t.id === e.target.value)
-                    if (!template) return
-                    const res = await fetch('/api/tasks', {
-                      method: 'PUT',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        id: task.id,
-                        edited_text: template.content,
-                        status: 'edited',
-                        send_to_slack: true,
-                      }),
-                    })
-                    if (res.ok) {
-                      toast.success(`"${template.name}" sent to Slack`)
-                      onTaskUpdated?.()
-                    } else {
-                      toast.error('Failed to send reply')
-                    }
-                    e.target.value = ''
-                  }}
-                >
-                  <option value="">Quick reply...</option>
-                  {templates.map(t => (
+              <select
+                className="text-xs border rounded-md px-2.5 py-1.5 bg-background w-full sm:w-auto sm:min-w-[140px]"
+                defaultValue=""
+                onChange={async (e) => {
+                  if (e.target.value === '_create') {
+                    window.location.href = '/dashboard/settings'
+                    return
+                  }
+                  const template = templates?.find(t => t.id === e.target.value)
+                  if (!template) return
+                  const res = await fetch('/api/tasks', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      id: task.id,
+                      edited_text: template.content,
+                      status: 'edited',
+                      send_to_slack: true,
+                    }),
+                  })
+                  if (res.ok) {
+                    toast.success(`"${template.name}" sent to Slack`)
+                    onTaskUpdated?.()
+                  } else {
+                    toast.error('Failed to send reply')
+                  }
+                  e.target.value = ''
+                }}
+              >
+                <option value="">Quick reply...</option>
+                {templates && templates.length > 0 ? (
+                  templates.map(t => (
                     <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </select>
-              )}
+                  ))
+                ) : (
+                  <option value="_create">+ Create templates in Settings</option>
+                )}
+              </select>
 
               {/* Direct send button for tasks with a draft that haven't been sent yet */}
               {task.draft_text && task.status !== 'sent' && (
