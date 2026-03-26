@@ -1,5 +1,6 @@
 import { bot } from '@/lib/telegram/bot'
 import { getServiceClient } from '@/lib/db/client'
+import { getCompanyName } from '@/lib/db/queries'
 import { logger } from '@/lib/utils/logger'
 import crypto from 'crypto'
 
@@ -37,22 +38,25 @@ export async function handleStartCommand(chatId: number, payload: string): Promi
   await supabase.from('invite_tokens').update({ used_at: new Date().toISOString() }).eq('id', token.id)
 
   const roleName = (token.roles as any)?.name || 'Team Member'
-  await bot.sendMessage(chatId, `You're now linked as <b>${roleName}</b>. You'll receive task notifications here.`, { parse_mode: 'HTML' })
+  const roleOwnerId = (token.roles as any)?.owner_id
+  const companyName = roleOwnerId ? await getCompanyName(roleOwnerId) : 'SlackFlow'
+  await bot.sendMessage(chatId, `You're now linked as <b>${roleName}</b> for <b>${companyName}</b>. You'll receive task notifications here.`, { parse_mode: 'HTML' })
 }
 
 export async function handlePendingCommand(chatId: number): Promise<void> {
   const supabase = getServiceClient()
-  const { data: role } = await supabase.from('roles').select('id, name').eq('telegram_chat_id', String(chatId)).maybeSingle()
+  const { data: roles } = await supabase.from('roles').select('id, name').eq('telegram_chat_id', String(chatId))
 
-  if (!role) {
+  if (!roles || roles.length === 0) {
     await bot.sendMessage(chatId, 'You are not linked to any role. Ask your admin for an invite link.')
     return
   }
 
+  const roleIds = roles.map(r => r.id)
   const { data: tasks } = await supabase
     .from('tasks')
-    .select('id, original_text, category, channel, created_at, status')
-    .eq('role_id', role.id)
+    .select('id, original_text, category, channel, created_at, status, workspaces(owner_id)')
+    .in('role_id', roleIds)
     .in('status', ['pending', 'draft_ready'])
     .order('created_at', { ascending: false })
     .limit(10)
@@ -62,20 +66,43 @@ export async function handlePendingCommand(chatId: number): Promise<void> {
     return
   }
 
-  const lines = tasks.map((t, i) => `${i + 1}. [${t.category}] #${t.channel} — ${(t.original_text || '').substring(0, 60)}...`)
+  // Collect unique owner IDs and resolve company names
+  const getOwnerId = (t: (typeof tasks)[number]) => {
+    const ws = t.workspaces as unknown as { owner_id: string } | null
+    return ws?.owner_id ?? null
+  }
+  const ownerIds = [...new Set(tasks.map(getOwnerId).filter(Boolean))] as string[]
+  const companyNames: Record<string, string> = {}
+  for (const oid of ownerIds) {
+    companyNames[oid] = await getCompanyName(oid)
+  }
+
+  const lines = tasks.map((t, i) => {
+    const ownerId = getOwnerId(t)
+    const company = ownerId ? companyNames[ownerId] : 'SlackFlow'
+    return `${i + 1}. [${t.category}] #${t.channel} — ${company}\n    ${(t.original_text || '').substring(0, 60)}...`
+  })
   await bot.sendMessage(chatId, `<b>Pending Tasks (${tasks.length}):</b>\n\n${lines.join('\n')}`, { parse_mode: 'HTML' })
 }
 
 export async function handleStatusCommand(chatId: number): Promise<void> {
   const supabase = getServiceClient()
-  const { data: role } = await supabase.from('roles').select('name, type, status').eq('telegram_chat_id', String(chatId)).maybeSingle()
+  const { data: roles } = await supabase.from('roles').select('name, type, status, owner_id').eq('telegram_chat_id', String(chatId))
 
-  if (!role) {
+  if (!roles || roles.length === 0) {
     await bot.sendMessage(chatId, 'Not linked. Ask your admin for an invite link.')
     return
   }
 
-  await bot.sendMessage(chatId, `<b>Your Status</b>\nRole: ${role.name}\nType: ${role.type}\nLink: ${role.status}`, { parse_mode: 'HTML' })
+  // Show all teams this person is linked to
+  const lines: string[] = []
+  for (const role of roles) {
+    const companyName = await getCompanyName(role.owner_id)
+    const statusIcon = role.status === 'linked' ? '✓' : '○'
+    lines.push(`${statusIcon} <b>${companyName}</b> — ${role.name} (${role.type})`)
+  }
+
+  await bot.sendMessage(chatId, `<b>Your Teams</b>\n\n${lines.join('\n')}`, { parse_mode: 'HTML' })
 }
 
 export async function handleHelpCommand(chatId: number): Promise<void> {

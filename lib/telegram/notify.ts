@@ -9,6 +9,7 @@ interface NotifyParams {
   chatId: string
   taskId: string
   workspaceName: string
+  companyName?: string
   channel: string
   senderName: string
   category: string
@@ -19,7 +20,7 @@ interface NotifyParams {
 }
 
 export async function notifyAssignee(params: NotifyParams): Promise<number | null> {
-  const { chatId, taskId, workspaceName, channel, senderName, category, categoryEmoji, confidence, originalText, draftText } = params
+  const { chatId, taskId, workspaceName, companyName, channel, senderName, category, categoryEmoji, confidence, originalText, draftText } = params
 
   if (!chatId) {
     logger.warn({ taskId }, 'No chat ID for assignee, skipping notification')
@@ -28,7 +29,8 @@ export async function notifyAssignee(params: NotifyParams): Promise<number | nul
 
   const confidenceBar = confidence >= 0.8 ? 'High' : confidence >= 0.5 ? 'Medium' : 'Low'
 
-  let message = `<b>${categoryEmoji} ${escapeHtml(category)}</b> — ${escapeHtml(workspaceName)}\n`
+  const companyLabel = companyName && companyName !== 'SlackFlow' ? companyName : workspaceName
+  let message = `<b>${categoryEmoji} ${escapeHtml(category)}</b> — ${escapeHtml(companyLabel)} (via SlackFlow)\n`
   message += `Channel: <b>#${escapeHtml(channel)}</b>\n`
   message += `From: ${escapeHtml(senderName)}\n\n`
   message += `<b>Message:</b>\n${escapeHtml(originalText.substring(0, 300))}${originalText.length > 300 ? '...' : ''}\n`

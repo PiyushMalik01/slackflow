@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createAuthClient, getServiceClient } from '@/lib/db/client'
-import { upsertRole, updateRole, deleteRole, seedDefaultCategories } from '@/lib/db/queries'
+import { upsertRole, updateRole, deleteRole, seedDefaultCategories, getCompanyName } from '@/lib/db/queries'
 import { generateInviteToken } from '@/lib/telegram/commands'
 import { validateOrigin } from '@/lib/utils/csrf'
 import { jsonOk, json400, json401, json403, json500 } from '@/lib/utils/api-helpers'
@@ -119,10 +119,11 @@ export async function DELETE(req: NextRequest) {
 
     if (role?.telegram_chat_id) {
       try {
+        const companyName = await getCompanyName(user.id)
         const { bot } = await import('@/lib/telegram/bot')
         await bot.sendMessage(
           role.telegram_chat_id,
-          'You have been removed from the SlackFlow team. You will no longer receive task notifications.',
+          `You have been removed from ${companyName}'s team on SlackFlow. You will no longer receive task notifications.`,
         )
       } catch { /* ignore send errors */ }
     }

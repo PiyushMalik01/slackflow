@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { createAuthClient, getServiceClient } from '@/lib/db/client'
+import { getCompanyName } from '@/lib/db/queries'
 import { validateOrigin } from '@/lib/utils/csrf'
 import { jsonOk, json400, json401, json403, json500 } from '@/lib/utils/api-helpers'
 
@@ -61,10 +62,11 @@ export async function PUT(req: NextRequest) {
           const { data: newRole } = await svc.from('roles').select('name').eq('id', updates.role_id).maybeSingle()
 
           if (oldRole?.telegram_chat_id) {
+            const companyName = await getCompanyName(user.id)
             const { bot } = await import('@/lib/telegram/bot')
             await bot.sendMessage(
               oldRole.telegram_chat_id,
-              `↩ <b>Task reassigned</b>\n\nThe task from <b>#${fullTask.channel}</b> has been reassigned to <b>${newRole?.name || 'another member'}</b>. No action needed from you.`,
+              `↩ <b>Task reassigned</b> (${companyName})\n\nThe task from <b>#${fullTask.channel}</b> has been reassigned to <b>${newRole?.name || 'another member'}</b>. No action needed from you.`,
               { parse_mode: 'HTML' }
             )
           }
@@ -77,11 +79,13 @@ export async function PUT(req: NextRequest) {
       try {
         const { data: newRole } = await svc.from('roles').select('telegram_chat_id, name').eq('id', updates.role_id).maybeSingle()
         if (newRole?.telegram_chat_id) {
+          const taskCompanyName = await getCompanyName(user.id)
           const { notifyAssignee } = await import('@/lib/telegram/notify')
           const msgId = await notifyAssignee({
             chatId: newRole.telegram_chat_id,
             taskId: id,
             workspaceName: (fullTask.workspaces as { name: string } | null)?.name || 'Unknown',
+            companyName: taskCompanyName,
             channel: fullTask.channel,
             senderName: fullTask.sender_name || 'Unknown',
             category: fullTask.category || 'General',

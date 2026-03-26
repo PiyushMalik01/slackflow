@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { createAuthClient, getServiceClient } from '@/lib/db/client'
-import { setWorkspaceRole, removeWorkspaceRole } from '@/lib/db/queries'
+import { setWorkspaceRole, removeWorkspaceRole, getCompanyName } from '@/lib/db/queries'
 import { validateOrigin } from '@/lib/utils/csrf'
 import { jsonOk, json400, json401, json403, json500 } from '@/lib/utils/api-helpers'
 
@@ -47,10 +47,11 @@ export async function POST(req: NextRequest) {
           .maybeSingle()
 
         if (role?.telegram_chat_id && category && workspace) {
+          const companyName = await getCompanyName(user.id)
           const { bot } = await import('@/lib/telegram/bot')
           await bot.sendMessage(
             role.telegram_chat_id,
-            `${category.emoji || ''} You've been assigned to handle <b>${category.name}</b> tasks from <b>${workspace.name}</b>. You'll receive notifications when matching messages come in.`,
+            `${category.emoji || ''} You've been assigned to handle <b>${category.name}</b> tasks for <b>${companyName}</b>. You'll receive notifications when matching messages come in.`,
             { parse_mode: 'HTML' },
           )
         }
@@ -84,10 +85,11 @@ export async function POST(req: NextRequest) {
             .maybeSingle()
 
           if (role?.telegram_chat_id && category && workspace) {
+            const companyName = await getCompanyName(user.id)
             const { bot } = await import('@/lib/telegram/bot')
             await bot.sendMessage(
               role.telegram_chat_id,
-              `${category.emoji || ''} You've been unassigned from <b>${category.name}</b> tasks in <b>${workspace.name}</b>.`,
+              `${category.emoji || ''} You've been unassigned from <b>${category.name}</b> tasks for <b>${companyName}</b>.`,
               { parse_mode: 'HTML' },
             )
           }

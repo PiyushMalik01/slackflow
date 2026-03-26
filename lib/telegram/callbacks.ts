@@ -1,5 +1,6 @@
 import { bot } from '@/lib/telegram/bot'
 import { getServiceClient } from '@/lib/db/client'
+import { getCompanyName } from '@/lib/db/queries'
 import { startEditSession, getActiveSession, updateSessionState, deleteSession } from '@/lib/telegram/sessions'
 import { postReplyToSlack } from '@/lib/slack/egress'
 import { notifyTeamGroup } from '@/lib/telegram/group-notify'
@@ -31,12 +32,14 @@ export async function handleApprove(taskId: string, chatId: number, messageId: n
   await bot.editMessageText('Approved and sent to Slack.', { chat_id: chatId, message_id: messageId })
 
   // Notify team group
-  const { data: workspace } = await supabase.from('workspaces').select('team_group_chat_id, name').eq('id', task.workspace_id).maybeSingle()
-  const { data: role } = await supabase.from('roles').select('name').eq('telegram_chat_id', String(chatId)).maybeSingle()
+  const { data: workspace } = await supabase.from('workspaces').select('team_group_chat_id, name, owner_id').eq('id', task.workspace_id).maybeSingle()
+  const { data: role } = task.role_id ? await supabase.from('roles').select('name').eq('id', task.role_id).maybeSingle() : { data: null }
   if (workspace?.team_group_chat_id) {
+    const companyName = await getCompanyName(workspace.owner_id)
     await notifyTeamGroup({
       groupChatId: workspace.team_group_chat_id,
       workspaceName: workspace.name,
+      companyName,
       channel: task.channel,
       category: task.category || 'General',
       categoryEmoji: '',
@@ -58,14 +61,16 @@ export async function handleDismiss(taskId: string, chatId: number, messageId: n
   await bot.editMessageText('Task dismissed.', { chat_id: chatId, message_id: messageId })
 
   // Notify team group
-  const { data: task } = await supabase.from('tasks').select('workspace_id, channel, category, sender_name').eq('id', taskId).maybeSingle()
+  const { data: task } = await supabase.from('tasks').select('workspace_id, channel, category, sender_name, role_id').eq('id', taskId).maybeSingle()
   if (task) {
-    const { data: workspace } = await supabase.from('workspaces').select('team_group_chat_id, name').eq('id', task.workspace_id).maybeSingle()
-    const { data: role } = await supabase.from('roles').select('name').eq('telegram_chat_id', String(chatId)).maybeSingle()
+    const { data: workspace } = await supabase.from('workspaces').select('team_group_chat_id, name, owner_id').eq('id', task.workspace_id).maybeSingle()
+    const { data: role } = task.role_id ? await supabase.from('roles').select('name').eq('id', task.role_id).maybeSingle() : { data: null }
     if (workspace?.team_group_chat_id) {
+      const companyName = await getCompanyName(workspace.owner_id)
       await notifyTeamGroup({
         groupChatId: workspace.team_group_chat_id,
         workspaceName: workspace.name,
+        companyName,
         channel: task.channel,
         category: task.category || 'General',
         categoryEmoji: '',
@@ -140,14 +145,16 @@ export async function handleEditConfirm(taskId: string, chatId: number, messageI
   await bot.editMessageText('Custom response sent to Slack.', { chat_id: chatId, message_id: messageId })
 
   // Notify team group
-  const { data: task } = await supabase.from('tasks').select('workspace_id, channel, category, sender_name').eq('id', taskId).maybeSingle()
+  const { data: task } = await supabase.from('tasks').select('workspace_id, channel, category, sender_name, role_id').eq('id', taskId).maybeSingle()
   if (task) {
-    const { data: workspace } = await supabase.from('workspaces').select('team_group_chat_id, name').eq('id', task.workspace_id).maybeSingle()
-    const { data: role } = await supabase.from('roles').select('name').eq('telegram_chat_id', String(chatId)).maybeSingle()
+    const { data: workspace } = await supabase.from('workspaces').select('team_group_chat_id, name, owner_id').eq('id', task.workspace_id).maybeSingle()
+    const { data: role } = task.role_id ? await supabase.from('roles').select('name').eq('id', task.role_id).maybeSingle() : { data: null }
     if (workspace?.team_group_chat_id) {
+      const companyName = await getCompanyName(workspace.owner_id)
       await notifyTeamGroup({
         groupChatId: workspace.team_group_chat_id,
         workspaceName: workspace.name,
+        companyName,
         channel: task.channel,
         category: task.category || 'General',
         categoryEmoji: '',
@@ -200,7 +207,7 @@ export async function handleReassign(taskId: string, chatId: number, messageId: 
     message_id: messageId,
   })
 
-  const { data: task } = await supabase.from('tasks').select('workspace_id, channel, category, sender_name').eq('id', taskId).maybeSingle()
+  const { data: task } = await supabase.from('tasks').select('workspace_id, channel, category, sender_name, role_id').eq('id', taskId).maybeSingle()
   if (task) {
     await supabase.from('activity_log').insert({
       workspace_id: task.workspace_id,
@@ -210,12 +217,14 @@ export async function handleReassign(taskId: string, chatId: number, messageId: 
       details: { reason: 'Team member declined' },
     })
 
-    const { data: workspace } = await supabase.from('workspaces').select('team_group_chat_id, name').eq('id', task.workspace_id).maybeSingle()
-    const { data: role } = await supabase.from('roles').select('name').eq('telegram_chat_id', String(chatId)).maybeSingle()
+    const { data: workspace } = await supabase.from('workspaces').select('team_group_chat_id, name, owner_id').eq('id', task.workspace_id).maybeSingle()
+    const { data: role } = task.role_id ? await supabase.from('roles').select('name').eq('id', task.role_id).maybeSingle() : { data: null }
     if (workspace?.team_group_chat_id) {
+      const companyName = await getCompanyName(workspace.owner_id)
       await notifyTeamGroup({
         groupChatId: workspace.team_group_chat_id,
         workspaceName: workspace.name,
+        companyName,
         channel: task.channel,
         category: task.category || 'General',
         categoryEmoji: '',

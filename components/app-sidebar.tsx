@@ -17,6 +17,7 @@ import {
   Menu,
   ChevronDown,
   Settings,
+  User,
 } from 'lucide-react'
 import { createBrowserClient } from '@/lib/db/browser-client'
 import { BRAND_LOGO_SIZES, PlatformLogo } from '@/components/platform-logo'
@@ -167,8 +168,20 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       </nav>
 
-      {/* Theme toggle + Sign out */}
+      {/* Profile + Theme toggle + Sign out */}
       <div className="border-t p-3 space-y-0.5">
+        <Link
+          href="/dashboard/profile"
+          onClick={onNavigate}
+          className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors ${
+            pathname === '/dashboard/profile'
+              ? 'bg-accent font-medium text-foreground border-l-2 border-primary pl-[10px]'
+              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+          }`}
+        >
+          <User className="h-4 w-4" />
+          Profile
+        </Link>
         <ThemeToggle className="flex w-full items-center justify-start gap-2.5 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground" />
         <button
           onClick={handleSignOut}

@@ -4,7 +4,7 @@ import { runAiPipeline } from '@/lib/ai/pipeline'
 import { resolveSlackUser } from '@/lib/slack/user-cache'
 import { notifyAssignee } from '@/lib/telegram/notify'
 import { notifyTeamGroup } from '@/lib/telegram/group-notify'
-import { getCategories, resolveRole } from '@/lib/db/queries'
+import { getCategories, resolveRole, getCompanyName } from '@/lib/db/queries'
 import { decrypt } from '@/lib/utils/security'
 import { logger } from '@/lib/utils/logger'
 import { WebClient } from '@slack/web-api'
@@ -105,6 +105,9 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
     log.error('Workspace not found')
     return
   }
+
+  // Get company name for notifications
+  const companyName = await getCompanyName(workspace.owner_id)
 
   // Check monitored channels
   const monitoredChannels = workspace.monitored_channels || []
@@ -282,6 +285,7 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
         chatId: role.telegram_chat_id,
         taskId: task.id,
         workspaceName: workspace.name,
+        companyName,
         channel: channelName,
         senderName,
         category: aiResult.category,
@@ -321,6 +325,7 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
             chatId: addRole.telegram_chat_id,
             taskId: additionalTaskId,
             workspaceName: workspace.name,
+            companyName,
             channel: channelName,
             senderName,
             category: addTask.category || 'General',
@@ -342,6 +347,7 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
       await notifyTeamGroup({
         groupChatId: workspace.team_group_chat_id,
         workspaceName: workspace.name,
+        companyName,
         channel: channelName,
         category: aiResult.category,
         categoryEmoji: matchedCategory?.emoji || '',

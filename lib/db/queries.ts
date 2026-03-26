@@ -8,6 +8,17 @@ type TaskInsert = Database['public']['Tables']['tasks']['Insert']
 type WorkspaceInsert = Database['public']['Tables']['workspaces']['Insert']
 type RoleInsert = Database['public']['Tables']['roles']['Insert']
 
+// ── User Profiles ─────────────────────────────────────────────────────────────
+
+export async function getCompanyName(ownerId: string): Promise<string> {
+  const { data } = await getServiceClient()
+    .from('user_profiles')
+    .select('company_name')
+    .eq('user_id', ownerId)
+    .maybeSingle()
+  return data?.company_name || 'SlackFlow'
+}
+
 // ── Workspace Members ─────────────────────────────────────────────────────────
 
 export async function getWorkspaceIdsForUser(userId: string): Promise<string[]> {

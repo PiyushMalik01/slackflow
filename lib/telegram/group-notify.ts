@@ -4,6 +4,7 @@ import { logger } from '@/lib/utils/logger'
 interface GroupNotifyParams {
   groupChatId: string
   workspaceName: string
+  companyName?: string
   channel: string
   category: string
   categoryEmoji: string
@@ -14,14 +15,15 @@ interface GroupNotifyParams {
 }
 
 export async function notifyTeamGroup(params: GroupNotifyParams): Promise<void> {
-  const { groupChatId, workspaceName, channel, category, categoryEmoji, assigneeName, senderName, action } = params
+  const { groupChatId, workspaceName, companyName, channel, category, categoryEmoji, assigneeName, senderName, action } = params
+  const companyLabel = companyName && companyName !== 'SlackFlow' ? companyName : workspaceName
 
   if (!groupChatId) return
 
   let message = ''
   switch (action) {
     case 'created':
-      message = `${categoryEmoji} <b>New ${category}</b> from <b>#${channel}</b> (${workspaceName})\nFrom: ${senderName} — Assigned to: <b>${assigneeName}</b>`
+      message = `${categoryEmoji} <b>New ${category}</b> from <b>#${channel}</b> (${companyLabel})\nFrom: ${senderName} — Assigned to: <b>${assigneeName}</b>`
       if (params.taskPreview) message += `\n<i>${params.taskPreview.substring(0, 100)}...</i>`
       break
     case 'approved':

@@ -285,6 +285,24 @@ export interface Database {
           joined_at: string
         }>
       }
+      user_profiles: {
+        Row: {
+          id: string
+          user_id: string
+          company_name: string
+          display_name: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          company_name?: string
+          display_name?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['user_profiles']['Insert']>
+      }
       ai_settings: {
         Row: {
           id: string
@@ -391,4 +409,13 @@ export interface WorkspaceMember {
   user_id: string
   role: string
   joined_at: string
+}
+
+export interface UserProfile {
+  id: string
+  user_id: string
+  company_name: string
+  display_name: string
+  created_at: string
+  updated_at: string
 }

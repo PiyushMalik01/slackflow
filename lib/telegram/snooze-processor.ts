@@ -1,4 +1,5 @@
 import { getServiceClient } from '@/lib/db/client'
+import { getCompanyName } from '@/lib/db/queries'
 import { notifyAssignee } from '@/lib/telegram/notify'
 import { logger } from '@/lib/utils/logger'
 
@@ -7,7 +8,7 @@ export async function processDueSnoozes(): Promise<number> {
 
   const { data: snoozedTasks, error } = await supabase
     .from('tasks')
-    .select('*, roles(telegram_chat_id, name), workspaces(name)')
+    .select('*, roles(telegram_chat_id, name), workspaces(name, owner_id)')
     .not('snooze_until', 'is', null)
     .lte('snooze_until', new Date().toISOString())
     .in('status', ['pending', 'draft_ready'])
@@ -21,10 +22,14 @@ export async function processDueSnoozes(): Promise<number> {
     if (!chatId) continue
 
     try {
+      const wsData = task.workspaces as { name: string; owner_id: string } | null
+      const companyName = wsData?.owner_id ? await getCompanyName(wsData.owner_id) : 'SlackFlow'
+
       await notifyAssignee({
         chatId,
         taskId: task.id,
-        workspaceName: (task.workspaces as { name: string } | null)?.name || 'Unknown',
+        workspaceName: wsData?.name || 'Unknown',
+        companyName,
         channel: task.channel,
         senderName: task.sender_name || 'Unknown',
         category: task.category || 'General',
