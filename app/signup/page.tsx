@@ -7,6 +7,7 @@ import { Loader2, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { createBrowserClient } from '@/lib/db/browser-client'
 import { BRAND_LOGO_SIZES, PlatformLogo } from '@/components/platform-logo'
+import { FlyingPlanes } from '@/components/flying-planes'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -89,7 +90,8 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-muted/40 via-background to-muted/20 px-4">
-      <div className="w-full max-w-sm">
+      <FlyingPlanes />
+      <div className="w-full max-w-sm relative z-10">
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-flex items-center gap-2 mb-6">
@@ -100,7 +102,7 @@ export default function SignupPage() {
         </div>
 
         {/* Card */}
-        <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
+        <div className="bg-card/80 backdrop-blur-sm rounded-xl border border-border/50 p-6 shadow-lg">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium mb-1.5">Email</label>

@@ -108,6 +108,25 @@ export async function DELETE(req: NextRequest) {
     const id = searchParams.get('id')
     if (!id) return json400('Missing id')
 
+    // Before deleting, notify the member if they have a linked Telegram
+    const svc = getServiceClient()
+    const { data: role } = await svc
+      .from('roles')
+      .select('telegram_chat_id, name')
+      .eq('id', id)
+      .eq('owner_id', user.id)
+      .maybeSingle()
+
+    if (role?.telegram_chat_id) {
+      try {
+        const { bot } = await import('@/lib/telegram/bot')
+        await bot.sendMessage(
+          role.telegram_chat_id,
+          'You have been removed from the SlackFlow team. You will no longer receive task notifications.',
+        )
+      } catch { /* ignore send errors */ }
+    }
+
     await deleteRole(id, user.id)
     return jsonOk({ success: true })
   } catch {

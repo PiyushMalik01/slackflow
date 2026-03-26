@@ -124,15 +124,15 @@ export default async function DashboardPage() {
       {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {metricCards.map((m) => (
-          <Card key={m.label} className="group hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+          <Card key={m.label} className="card-hover group border-t-2 border-t-primary/20 hover:border-t-primary/40 transition-all duration-200">
             <CardContent className="pt-6">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-muted-foreground">{m.label}</span>
+                <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{m.label}</span>
                 <div className="w-8 h-8 bg-primary/10 text-primary rounded-lg flex items-center justify-center group-hover:bg-primary/15 transition-colors duration-200">
                   <m.icon className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-3xl font-bold tabular-nums">{m.value}</div>
+              <div className="text-3xl font-bold tracking-tight tabular-nums">{m.value}</div>
             </CardContent>
           </Card>
         ))}

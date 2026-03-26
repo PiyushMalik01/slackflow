@@ -36,11 +36,32 @@ export function WorkspaceSwitcher({ className }: { className?: string }) {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) return
+
+      // Try workspace_members first (shared workspace model)
       const { data: memberships } = await supabase.from('workspace_members').select('workspace_id').eq('user_id', user.id)
       const wsIds = memberships?.map((m: { workspace_id: string }) => m.workspace_id) || []
-      if (wsIds.length === 0) { setWorkspaces([]); return }
-      const { data } = await supabase.from('workspaces').select('id, name, accent_color').in('id', wsIds)
-      setWorkspaces(data || [])
+
+      if (wsIds.length > 0) {
+        const { data } = await supabase.from('workspaces').select('id, name, accent_color').in('id', wsIds)
+        setWorkspaces(data || [])
+        return
+      }
+
+      // Fallback: query workspaces by owner_id (for workspaces without membership rows)
+      const { data: ownedWs } = await supabase.from('workspaces').select('id, name, accent_color').eq('owner_id', user.id)
+      if (ownedWs && ownedWs.length > 0) {
+        setWorkspaces(ownedWs)
+        // Backfill missing membership rows
+        for (const ws of ownedWs) {
+          await supabase.from('workspace_members').upsert(
+            { workspace_id: ws.id, user_id: user.id, role: 'admin' },
+            { onConflict: 'workspace_id,user_id' }
+          ).then(() => {})
+        }
+        return
+      }
+
+      setWorkspaces([])
     }
 
     load()

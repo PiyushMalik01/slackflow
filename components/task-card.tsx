@@ -147,7 +147,7 @@ export function TaskCard({ task, categories, roles, templates, selected, onToggl
         </div>
 
         {expanded && (
-          <div className="mt-4 text-sm border-t pt-4" onClick={(e) => e.stopPropagation()}>
+          <div className="mt-4 text-sm border-t pt-4 transition-all duration-200" onClick={(e) => e.stopPropagation()}>
             {/* Message content */}
             <div className="space-y-3 mb-4">
               <div>

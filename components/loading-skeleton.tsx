@@ -10,30 +10,30 @@ export function LoadingSkeleton({ variant = 'text', className }: SkeletonProps) 
     case 'metric':
       return (
         <div className={cn('rounded-xl border bg-card p-6', className)}>
-          <div className="h-4 w-24 animate-pulse rounded bg-muted" />
-          <div className="mt-3 h-8 w-16 animate-pulse rounded bg-muted" />
-          <div className="mt-2 h-3 w-32 animate-pulse rounded bg-muted" />
+          <div className="h-4 w-24 animate-pulse rounded bg-muted/50" />
+          <div className="mt-3 h-8 w-16 animate-pulse rounded bg-muted/50" />
+          <div className="mt-2 h-3 w-32 animate-pulse rounded bg-muted/50" />
         </div>
       )
     case 'card':
       return (
         <div className={cn('rounded-xl border bg-card p-6 space-y-3', className)}>
-          <div className="h-5 w-3/4 animate-pulse rounded bg-muted" />
-          <div className="h-4 w-1/2 animate-pulse rounded bg-muted" />
-          <div className="h-4 w-full animate-pulse rounded bg-muted" />
+          <div className="h-5 w-3/4 animate-pulse rounded bg-muted/50" />
+          <div className="h-4 w-1/2 animate-pulse rounded bg-muted/50" />
+          <div className="h-4 w-full animate-pulse rounded bg-muted/50" />
         </div>
       )
     case 'table-row':
       return (
         <div className={cn('flex items-center gap-4 py-3 px-4', className)}>
-          <div className="h-4 w-20 animate-pulse rounded bg-muted" />
-          <div className="h-4 w-32 animate-pulse rounded bg-muted" />
-          <div className="h-4 w-16 animate-pulse rounded bg-muted" />
-          <div className="h-4 w-24 animate-pulse rounded bg-muted flex-1" />
+          <div className="h-4 w-20 animate-pulse rounded bg-muted/50" />
+          <div className="h-4 w-32 animate-pulse rounded bg-muted/50" />
+          <div className="h-4 w-16 animate-pulse rounded bg-muted/50" />
+          <div className="h-4 w-24 animate-pulse rounded bg-muted/50 flex-1" />
         </div>
       )
     default:
-      return <div className={cn('h-4 w-full animate-pulse rounded bg-muted', className)} />
+      return <div className={cn('h-4 w-full animate-pulse rounded bg-muted/50', className)} />
   }
 }
 

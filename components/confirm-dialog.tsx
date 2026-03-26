@@ -42,11 +42,11 @@ export function ConfirmDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+        className="fixed inset-0 bg-black/50 backdrop-blur-md"
         onClick={() => onOpenChange(false)}
       />
       {/* Dialog */}
-      <div className="relative bg-card rounded-xl border shadow-xl p-6 w-full max-w-sm mx-4 animate-in fade-in-0 zoom-in-95">
+      <div className="relative bg-card rounded-2xl border shadow-2xl p-6 w-full max-w-sm mx-4 animate-in fade-in-0 zoom-in-95">
         <h3 className="text-lg font-semibold">{title}</h3>
         <p className="text-sm text-muted-foreground mt-2">{description}</p>
         <div className="flex items-center justify-end gap-3 mt-6">

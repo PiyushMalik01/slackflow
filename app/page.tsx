@@ -21,6 +21,7 @@ import {
 import { BRAND_LOGO_SIZES, PlatformLogo } from '@/components/platform-logo'
 import { Button } from '@/components/ui/button'
 import { ThemeToggle } from '@/components/theme-toggle'
+import { FlyingPlanes } from '@/components/flying-planes'
 
 const STEPS = [
   {
@@ -93,117 +94,6 @@ const FEATURES = [
     iconColor: 'text-slate-500',
   },
 ] as const
-
-/* -- Flying Paper Planes --------------------------------------------- */
-
-function FlyingPlanes() {
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => setMounted(true), [])
-
-  // Listen for theme changes via MutationObserver on <html> class
-  const [isDark, setIsDark] = useState(false)
-  useEffect(() => {
-    if (!mounted) return
-    const html = document.documentElement
-    setIsDark(html.classList.contains('dark'))
-    const observer = new MutationObserver(() => {
-      setIsDark(html.classList.contains('dark'))
-    })
-    observer.observe(html, { attributes: true, attributeFilter: ['class'] })
-    return () => observer.disconnect()
-  }, [mounted])
-
-  const planeSrc = isDark ? '/flyingasset_darktheme.png' : '/flyingassets_lighttheme.png'
-
-  const [planes] = useState(() => {
-    const yPositions = [12, 28, 44, 60, 76, 20, 52, 68, 36]
-    return Array.from({ length: 14 }).map((_, i) => {
-      // Alternate directions: even = right-to-left (normal image), odd = left-to-right (flipped)
-      const goingLeft = i % 2 === 0
-      return {
-        id: i,
-        goingLeft,
-        // Some start already on screen so they're visible immediately
-        // First 9 planes start scattered across the visible screen, rest from edges
-        startX: goingLeft
-          ? (i < 9 ? 10 + (i * 10) + Math.random() * 5 : 105 + Math.random() * 10)
-          : (i < 9 ? 10 + (i * 10) + Math.random() * 5 : -15 - Math.random() * 10),
-        endX: goingLeft ? -15 - Math.random() * 10 : 105 + Math.random() * 10,
-        startY: yPositions[i % yPositions.length] + (Math.random() * 8 - 4),
-        size: 35 + Math.random() * 50,
-        tilt: -8 + Math.random() * 16,
-        opacity: 0.15 + Math.random() * 0.2,
-        duration: 40 + Math.random() * 50,
-        delay: i < 9 ? 0 : Math.random() * 5,
-        bobAmount: 12 + Math.random() * 25,
-        bobSpeed: 5 + Math.random() * 7,
-      }
-    })
-  })
-
-  return (
-    <div className="fixed inset-0 overflow-hidden pointer-events-none z-0">
-      {planes.map((p) => (
-        <motion.div
-          key={p.id}
-          className="absolute"
-          style={{
-            top: `${p.startY}%`,
-            width: p.size,
-            height: p.size,
-          }}
-          initial={{ left: `${p.startX}%` }}
-          animate={{ left: [`${p.startX}%`, `${p.endX}%`] }}
-          transition={{
-            duration: p.duration,
-            delay: p.delay,
-            repeat: Infinity,
-            ease: 'linear',
-          }}
-        >
-          <motion.div
-            animate={{ y: [-p.bobAmount, p.bobAmount] }}
-            transition={{
-              duration: p.bobSpeed,
-              repeat: Infinity,
-              repeatType: 'reverse',
-              ease: 'easeInOut',
-            }}
-          >
-            <div className="relative w-full h-full">
-              {/* Spark glow behind the plane — colored in light mode, white in dark */}
-              <div
-                className="absolute inset-0 rounded-full blur-2xl"
-                style={{
-                  background: isDark
-                    ? 'radial-gradient(circle, rgba(255,255,255,0.3), rgba(255,255,255,0.08) 50%, transparent 75%)'
-                    : [
-                        'radial-gradient(circle, rgba(139,92,246,0.18), rgba(139,92,246,0.04) 50%, transparent 100%)',
-                        'radial-gradient(circle, rgba(59,130,246,0.18), rgba(59,130,246,0.04) 50%, transparent 75%)',
-                        'radial-gradient(circle, rgba(236,72,153,0.16), rgba(236,72,153,0.04) 50%, transparent 75%)',
-                        'radial-gradient(circle, rgba(34,197,94,0.16), rgba(34,197,94,0.04) 50%, transparent 75%)',
-                        'radial-gradient(circle, rgba(245,158,11,0.16), rgba(245,158,11,0.04) 50%, transparent 75%)',
-                      ][p.id % 5],
-                  transform: 'scale(1.8)',
-                }}
-              />
-              <img
-                src={planeSrc}
-                alt=""
-                draggable={false}
-                className="relative w-full h-full object-contain select-none"
-                style={{
-                  opacity: isDark ? p.opacity + 0.05 : p.opacity,
-                  transform: `rotate(${p.tilt}deg)${p.goingLeft ? '' : ' scaleX(-1)'}`,
-                }}
-              />
-            </div>
-          </motion.div>
-        </motion.div>
-      ))}
-    </div>
-  )
-}
 
 /* -- Animated Grid Background ---------------------------------------- */
 
@@ -524,24 +414,33 @@ export default function LandingPage() {
           </motion.div>
 
           <motion.h1
-            className="text-3xl font-bold leading-[1.08] tracking-tight sm:text-4xl md:text-5xl lg:text-7xl"
+            className="text-3xl font-bold leading-[1.1] tracking-tight sm:text-4xl md:text-5xl lg:text-7xl"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.1, ease: 'easeOut' }}
           >
-            <span className="block">AI routes your Slack</span>
-            <span className="block mt-1 bg-gradient-to-r from-violet-600 via-blue-600 to-cyan-500 bg-clip-text text-transparent">
-              messages to the right person
+            AI routes your Slack
+            <br />
+            messages to the{' '}
+            <span className="relative inline-block">
+              right person
+              <motion.span
+                className="absolute -bottom-1 left-0 h-[3px] w-full rounded-full bg-primary/60 sm:-bottom-2 sm:h-[4px]"
+                initial={{ scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ duration: 0.6, delay: 0.9, ease: 'easeOut' }}
+                style={{ transformOrigin: 'left' }}
+              />
             </span>
           </motion.h1>
 
           <motion.p
-            className="mx-auto mt-6 max-w-xl text-base text-muted-foreground sm:text-lg md:text-xl"
+            className="mx-auto mt-6 max-w-lg text-base text-muted-foreground/80 sm:text-lg leading-relaxed"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3, ease: 'easeOut' }}
           >
-            Connect your Slack workspaces, let AI classify and draft responses, and notify your team via Telegram. From message to action in seconds.
+            Connect Slack, let AI classify and draft responses, notify your team on Telegram. From message to action in seconds.
           </motion.p>
 
           <motion.div
@@ -627,13 +526,28 @@ export default function LandingPage() {
                 viewport={{ once: true }}
                 transition={{ duration: 1, delay: 0.3 }}
               />
-              {/* Animated pulse traveling the line */}
-              <motion.div
-                className="absolute top-[49px] h-[8px] w-[8px] rounded-full bg-primary shadow-[0_0_12px_rgba(139,92,246,0.6)]"
-                initial={{ left: '10%' }}
-                whileInView={{ left: ['10%', '90%'] }}
+              {/* Paper plane flying across the pipeline */}
+              <motion.img
+                src="/flyingassets_lighttheme.png"
+                alt=""
+                draggable={false}
+                className="absolute top-[40px] w-7 h-7 object-contain dark:hidden select-none"
+                style={{ transform: 'scaleX(-1)' }}
+                initial={{ left: '8%', opacity: 0 }}
+                whileInView={{ left: ['8%', '92%'], opacity: [0, 1, 1, 1, 0] }}
                 viewport={{ once: true }}
-                transition={{ duration: 2, delay: 0.8, ease: 'easeInOut' }}
+                transition={{ duration: 2.5, delay: 0.8, ease: 'easeInOut' }}
+              />
+              <motion.img
+                src="/flyingasset_darktheme.png"
+                alt=""
+                draggable={false}
+                className="absolute top-[40px] w-7 h-7 object-contain hidden dark:block select-none"
+                style={{ transform: 'scaleX(-1)' }}
+                initial={{ left: '8%', opacity: 0 }}
+                whileInView={{ left: ['8%', '92%'], opacity: [0, 1, 1, 1, 0] }}
+                viewport={{ once: true }}
+                transition={{ duration: 2.5, delay: 0.8, ease: 'easeInOut' }}
               />
 
               <div className="grid grid-cols-4 gap-8">
@@ -806,7 +720,7 @@ export default function LandingPage() {
       {/* -- Footer -------------------------------------------------- */}
       <footer className="border-t py-10">
         <motion.div
-          className="mx-auto max-w-6xl px-6 flex flex-col items-center gap-4 sm:flex-row sm:justify-between"
+          className="mx-auto max-w-6xl px-6 flex flex-col items-center gap-4 text-center"
           initial={{ opacity: 0 }}
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}

@@ -123,6 +123,32 @@
 ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
 
+/* Smoother text rendering */
+body {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.011em;
+}
+
+/* Tighter headings */
+h1, h2, h3, h4 {
+  letter-spacing: -0.025em;
+}
+
+/* Subtle selection color */
+::selection {
+  background: hsl(var(--primary) / 0.15);
+}
+
+/* Card hover micro-interaction */
+.card-hover {
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+.card-hover:hover {
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -135,7 +161,8 @@
     scroll-behavior: smooth;
   }
   :focus-visible {
-    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+    outline: 2px solid hsl(var(--primary) / 0.5);
+    outline-offset: 2px;
   }
 }
 
@@ -148,4 +175,17 @@
 img[alt*="logo"], img[alt*="Logo"] {
   -webkit-user-drag: none;
   user-select: none;
+}
+
+/* Circular theme toggle expansion */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  z-index: 1;
+}
+::view-transition-new(root) {
+  z-index: 9999;
 }

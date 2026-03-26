@@ -107,7 +107,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
               onClick={onNavigate}
               className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors ${
                 active
-                  ? 'bg-primary/10 font-semibold text-primary'
+                  ? 'bg-accent font-medium text-foreground border-l-2 border-primary pl-[10px]'
                   : 'text-muted-foreground hover:bg-muted hover:text-foreground'
               }`}
             >
@@ -153,7 +153,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                     onClick={onNavigate}
                     className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs transition-colors ${
                       active
-                        ? 'bg-primary/10 font-semibold text-primary'
+                        ? 'bg-accent font-medium text-foreground border-l-2 border-primary pl-[8px]'
                         : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                     }`}
                   >
@@ -184,7 +184,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
 
 export function AppSidebar() {
   return (
-    <aside className="fixed inset-y-0 left-0 z-50 hidden w-64 border-r bg-background md:flex md:flex-col">
+    <aside className="fixed inset-y-0 left-0 z-50 hidden w-64 border-r bg-muted/30 md:flex md:flex-col">
       <SidebarContent />
     </aside>
   )
