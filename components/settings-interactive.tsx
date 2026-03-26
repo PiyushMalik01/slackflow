@@ -6,7 +6,7 @@ import { useTheme } from 'next-themes'
 import {
   Plus, Save, Trash2, Edit2, X, Loader2,
   Tag, Sliders, CheckCircle2, XCircle, RefreshCw,
-  Brain, ExternalLink, Key, LogOut, Copy, Users,
+  Brain, ExternalLink, Key, LogOut, Copy, Users, HelpCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/confirm-dialog'
@@ -1110,6 +1110,35 @@ function PreferencesTab({ workspaces }: { workspaces: WorkspacePrefs[] }) {
   )
 }
 
+function SlackIdHelp() {
+  const [show, setShow] = useState(false)
+  return (
+    <span className="relative inline-block">
+      <button
+        type="button"
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        onClick={() => setShow(!show)}
+        className="text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <HelpCircle className="size-3.5" />
+      </button>
+      {show && (
+        <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 rounded-lg border bg-popover text-popover-foreground shadow-lg text-xs">
+          <p className="font-medium mb-1.5">How to find a Slack User ID</p>
+          <ol className="space-y-1 text-muted-foreground list-decimal list-inside">
+            <li>Open Slack and click on the user's profile picture</li>
+            <li>Click the <strong>three dots</strong> (More) button</li>
+            <li>Select <strong>"Copy member ID"</strong></li>
+            <li>Paste it here (looks like <code className="bg-muted px-1 rounded">U0ANAQ85X3Q</code>)</li>
+          </ol>
+          <div className="absolute left-1/2 -translate-x-1/2 top-full w-2 h-2 rotate-45 bg-popover border-b border-r" />
+        </div>
+      )}
+    </span>
+  )
+}
+
 function WorkspacePrefsCard({ workspace }: { workspace: WorkspacePrefs }) {
   const router = useRouter()
   const [accentColor, setAccentColor] = useState(workspace.accent_color || '#3B82F6')
@@ -1245,25 +1274,28 @@ function WorkspacePrefsCard({ workspace }: { workspace: WorkspacePrefs }) {
           {/* Ignored users list (for ignore_team mode) */}
           {filterMode === 'ignore_team' && (
             <div className="mt-3 space-y-2">
-              <label className="block text-xs font-medium">Team Slack User IDs to ignore</label>
+              <label className="flex items-center gap-1.5 text-xs font-medium">
+                Team Slack User IDs to ignore
+                <SlackIdHelp />
+              </label>
               <p className="text-xs text-muted-foreground">
-                Enter Slack user IDs (e.g., U0ANAQ85X3Q) separated by commas. Messages from these users will be skipped.
+                Enter Slack user IDs separated by commas. Messages from these users will be skipped.
               </p>
               <Input
                 value={ignoredUsers}
                 onChange={e => setIgnoredUsers(e.target.value)}
                 placeholder="U0ANAQ85X3Q, U0BN7G3K1M2"
               />
-              <p className="text-[10px] text-muted-foreground">
-                Tip: Find Slack user IDs by clicking a user profile in Slack → More → Copy member ID.
-              </p>
             </div>
           )}
 
           {/* Whitelisted users (for whitelist_only mode) */}
           {filterMode === 'whitelist_only' && (
             <div className="mt-3 space-y-2">
-              <label className="block text-xs font-medium">Whitelisted Slack User IDs</label>
+              <label className="flex items-center gap-1.5 text-xs font-medium">
+                Whitelisted Slack User IDs
+                <SlackIdHelp />
+              </label>
               <p className="text-xs text-muted-foreground">
                 Only messages from these Slack users will be processed. Everyone else is ignored.
               </p>
