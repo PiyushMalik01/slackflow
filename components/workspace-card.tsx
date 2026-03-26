@@ -4,11 +4,13 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Building2, ChevronDown, ChevronUp, Hash, Loader2,
-  AlertTriangle, Calendar, Radio, Trash2, LogOut, Users
+  AlertTriangle, Calendar, Radio, Trash2, LogOut, Users,
+  Filter, Save, HelpCircle
 } from 'lucide-react'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import Link from 'next/link'
@@ -28,6 +30,38 @@ interface Workspace {
   monitored_channels: string[] | null
   accent_color?: string
   team_group_chat_id?: string | null
+  message_filter_mode?: string
+  ignored_slack_users?: string[]
+  whitelisted_slack_users?: string[]
+}
+
+function SlackIdHelp() {
+  const [show, setShow] = useState(false)
+  return (
+    <span className="relative inline-block">
+      <button
+        type="button"
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+        onClick={() => setShow(!show)}
+        className="text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <HelpCircle className="size-3.5" />
+      </button>
+      {show && (
+        <div className="absolute z-50 bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 rounded-lg border bg-popover text-popover-foreground shadow-lg text-xs">
+          <p className="font-medium mb-1.5">How to find a Slack User ID</p>
+          <ol className="space-y-1 text-muted-foreground list-decimal list-inside">
+            <li>Open Slack and click on the user&apos;s profile picture</li>
+            <li>Click the <strong>three dots</strong> (More) button</li>
+            <li>Select <strong>&quot;Copy member ID&quot;</strong></li>
+            <li>Paste it here (looks like <code className="bg-muted px-1 rounded">U0ANAQ85X3Q</code>)</li>
+          </ol>
+          <div className="absolute left-1/2 -translate-x-1/2 top-full w-2 h-2 rotate-45 bg-popover border-b border-r" />
+        </div>
+      )}
+    </span>
+  )
 }
 
 export function WorkspaceCard({
@@ -46,6 +80,13 @@ export function WorkspaceCard({
   const [needsReauth, setNeedsReauth] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
+
+  // Message filter state
+  const [filterExpanded, setFilterExpanded] = useState(false)
+  const [filterMode, setFilterMode] = useState(workspace.message_filter_mode || 'all')
+  const [ignoredUsers, setIgnoredUsers] = useState((workspace.ignored_slack_users || []).join(', '))
+  const [whitelistedUsers, setWhitelistedUsers] = useState((workspace.whitelisted_slack_users || []).join(', '))
+  const [savingFilter, setSavingFilter] = useState(false)
 
   const monitoredCount = workspace.monitored_channels?.length || 0
   const accentColor = workspace.accent_color || '#3B82F6'
@@ -155,7 +196,7 @@ export function WorkspaceCard({
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <Calendar className="size-3 flex-shrink-0" />
-                    Installed {new Date(workspace.installed_at).toLocaleDateString()}
+                    Installed {new Date(workspace.installed_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
                   </span>
                   <span className="flex items-center gap-1">
                     <Radio className="size-3 flex-shrink-0" />
@@ -258,6 +299,123 @@ export function WorkspaceCard({
                 )}
               </div>
             )}
+
+            {/* Message Filter */}
+            <div className="mt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setFilterExpanded(!filterExpanded)}
+                className="w-full justify-between"
+              >
+                <span className="flex items-center gap-1.5">
+                  <Filter className="size-3.5" />
+                  Message Filter
+                  <Badge variant="secondary" className="text-[10px] ml-1">
+                    {filterMode === 'all' ? 'All' : filterMode === 'ignore_team' ? 'Ignore team' : 'Whitelist'}
+                  </Badge>
+                </span>
+                {filterExpanded ? (
+                  <ChevronUp className="size-3.5" />
+                ) : (
+                  <ChevronDown className="size-3.5" />
+                )}
+              </Button>
+
+              {filterExpanded && (
+                <div className="mt-3 space-y-3">
+                  <p className="text-xs text-muted-foreground">
+                    Control which Slack messages get processed by the AI pipeline.
+                  </p>
+
+                  <div className="space-y-2">
+                    {[
+                      { value: 'all', label: 'All messages', desc: 'Process every message in monitored channels' },
+                      { value: 'ignore_team', label: 'Ignore team members', desc: 'Skip messages from specified Slack users (your team)' },
+                      { value: 'whitelist_only', label: 'Only specific users', desc: 'Only process messages from whitelisted Slack users (clients)' },
+                    ].map(opt => (
+                      <label key={opt.value} className="flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer hover:bg-accent/50 transition-colors">
+                        <input
+                          type="radio"
+                          name={`filter-${workspace.id}`}
+                          value={opt.value}
+                          checked={filterMode === opt.value}
+                          onChange={() => setFilterMode(opt.value)}
+                          className="mt-0.5"
+                        />
+                        <div>
+                          <p className="text-sm font-medium">{opt.label}</p>
+                          <p className="text-xs text-muted-foreground">{opt.desc}</p>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+
+                  {filterMode === 'ignore_team' && (
+                    <div className="space-y-1.5">
+                      <label className="flex items-center gap-1.5 text-xs font-medium">
+                        Team Slack User IDs to ignore
+                        <SlackIdHelp />
+                      </label>
+                      <Input
+                        value={ignoredUsers}
+                        onChange={e => setIgnoredUsers(e.target.value)}
+                        placeholder="U0ANAQ85X3Q, U0BN7G3K1M2"
+                      />
+                    </div>
+                  )}
+
+                  {filterMode === 'whitelist_only' && (
+                    <div className="space-y-1.5">
+                      <label className="flex items-center gap-1.5 text-xs font-medium">
+                        Whitelisted Slack User IDs
+                        <SlackIdHelp />
+                      </label>
+                      <Input
+                        value={whitelistedUsers}
+                        onChange={e => setWhitelistedUsers(e.target.value)}
+                        placeholder="U0CLIENT1, U0CLIENT2"
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex justify-end">
+                    <Button
+                      size="sm"
+                      className="text-xs"
+                      disabled={savingFilter}
+                      onClick={async () => {
+                        setSavingFilter(true)
+                        try {
+                          const res = await fetch(`/api/workspaces/${workspace.id}/preferences`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              message_filter_mode: filterMode,
+                              ignored_slack_users: ignoredUsers.split(',').map(s => s.trim()).filter(Boolean),
+                              whitelisted_slack_users: whitelistedUsers.split(',').map(s => s.trim()).filter(Boolean),
+                            }),
+                          })
+                          if (res.ok) {
+                            toast.success('Message filter saved')
+                            router.refresh()
+                          } else {
+                            toast.error('Failed to save filter')
+                          }
+                        } catch {
+                          toast.error('Failed to save filter')
+                        } finally {
+                          setSavingFilter(false)
+                        }
+                      }}
+                    >
+                      {savingFilter ? <Loader2 className="size-3 animate-spin" /> : <Save className="size-3" />}
+                      Save Filter
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
           </CardContent>
         </div>
       </div>

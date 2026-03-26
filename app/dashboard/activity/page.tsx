@@ -2,11 +2,10 @@ import { getAuthUser, getServiceClient, getSelectedWorkspace } from '@/lib/db/cl
 import { listWorkspacesForUser, listActivityLog } from '@/lib/db/queries'
 import {
   Activity, Plus, Sparkles, Check, X, AlertTriangle,
-  ChevronLeft, ChevronRight, BarChart3, PieChart as PieChartIcon, TrendingUp, Calendar,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
 import { ActivityCharts } from '@/components/activity-charts'
 import Link from 'next/link'
 
@@ -154,10 +153,6 @@ export default async function ActivityPage({
   // Daily event counts for last 7 days
   const dailyData: { date: string; count: number }[] = []
   const actionData: { name: string; count: number; color: string }[] = []
-  let eventsToday = 0
-  let mostActiveWorkspace = ''
-  let mostCommonAction = ''
-
   if (workspaceIds.length > 0) {
     const db = getServiceClient()
     const sevenDaysAgo = new Date()
@@ -176,25 +171,10 @@ export default async function ActivityPage({
       // Group by date
       const dateMap: Record<string, number> = {}
       const actionMap: Record<string, number> = {}
-      const wsMap: Record<string, number> = {}
-      const todayStr = new Date().toISOString().slice(0, 10)
-
       for (const ev of recentEvents) {
         const dateKey = ev.created_at.slice(0, 10)
-
-        // Daily counts
         dateMap[dateKey] = (dateMap[dateKey] || 0) + 1
-
-        // Action counts
         actionMap[ev.action] = (actionMap[ev.action] || 0) + 1
-
-        // Workspace counts
-        if (ev.workspace_id) {
-          wsMap[ev.workspace_id] = (wsMap[ev.workspace_id] || 0) + 1
-        }
-
-        // Today count
-        if (dateKey === todayStr) eventsToday++
       }
 
       // Build daily data array (ensure all 7 days present)
@@ -212,16 +192,6 @@ export default async function ActivityPage({
       }
       actionData.sort((a, b) => b.count - a.count)
 
-      // Most active workspace
-      const topWsId = Object.entries(wsMap).sort((a, b) => b[1] - a[1])[0]?.[0]
-      if (topWsId && workspaceMap[topWsId]) {
-        mostActiveWorkspace = workspaceMap[topWsId].name
-      }
-
-      // Most common action
-      if (actionData.length > 0) {
-        mostCommonAction = actionData[0].name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-      }
     }
   }
 
@@ -232,37 +202,11 @@ export default async function ActivityPage({
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
-  const statCards = [
-    { label: 'Total Events', value: total, icon: BarChart3, className: 'text-indigo-600 dark:text-indigo-400 bg-indigo-500/10' },
-    { label: 'Events Today', value: eventsToday, icon: Calendar, className: 'text-blue-600 dark:text-blue-400 bg-blue-500/10' },
-    { label: 'Most Active', value: mostActiveWorkspace || '—', icon: TrendingUp, className: 'text-green-600 dark:text-green-400 bg-green-500/10' },
-    { label: 'Top Action', value: mostCommonAction || '—', icon: PieChartIcon, className: 'text-purple-600 dark:text-purple-400 bg-purple-500/10' },
-  ]
-
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Activity</h1>
         <p className="text-muted-foreground">Full audit trail of all pipeline events.</p>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {statCards.map((stat) => (
-          <Card key={stat.label}>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm text-muted-foreground">{stat.label}</span>
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${stat.className}`}>
-                  <stat.icon className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="text-2xl font-bold tabular-nums truncate">
-                {typeof stat.value === 'number' ? stat.value.toLocaleString() : stat.value}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
       </div>
 
       {/* Charts */}

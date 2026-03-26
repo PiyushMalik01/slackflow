@@ -1,11 +1,10 @@
 import { getAuthUser, getServiceClient, getSelectedWorkspace } from '@/lib/db/client'
-import { getDashboardMetrics, getRecentTasks, getSetupStatus, getCategories, listWorkspacesForUser } from '@/lib/db/queries'
+import { getDashboardMetrics, getRecentTasks, getCategories, listWorkspacesForUser } from '@/lib/db/queries'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { CategoryBadge } from '@/components/category-badge'
 import { StatusPill } from '@/components/status-pill'
 import { DashboardCharts } from '@/components/dashboard-charts'
-import { GuideTip } from '@/components/guide-tip'
-import { ListChecks, TrendingUp, Clock, Hash, ArrowRight, CheckCircle2, Circle } from 'lucide-react'
+import { ListChecks, TrendingUp, Clock, Hash, ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 
 export const metadata = { title: 'Overview' }
@@ -39,14 +38,11 @@ export default async function DashboardPage() {
   const user = await getAuthUser()
   const selectedWorkspace = await getSelectedWorkspace()
 
-  const [metrics, recentTasks, setup, categories, workspaces] = await Promise.all([
+  const [metrics, recentTasks, categories, workspaces] = await Promise.all([
     getDashboardMetrics(user!.id, selectedWorkspace || undefined).catch(() => ({
       tasksToday: 0, approvalRate: 0, pendingCount: 0, totalTasks: 0,
     })),
     getRecentTasks(user!.id, selectedWorkspace || undefined).catch(() => []),
-    getSetupStatus(user!.id).catch(() => ({
-      hasWorkspace: false, hasRoles: false, hasLinkedMembers: false, hasCategories: false,
-    })),
     getCategories(user!.id).catch(() => []),
     listWorkspacesForUser(user!.id).catch(() => []),
   ])
@@ -110,14 +106,6 @@ export default async function DashboardPage() {
     }
   }
 
-  const isFullySetUp = setup.hasWorkspace && setup.hasRoles && setup.hasCategories && setup.hasLinkedMembers
-
-  const steps = [
-    { done: setup.hasWorkspace, label: 'Connect a Slack workspace', href: '/dashboard/workspaces' },
-    { done: setup.hasCategories && setup.hasRoles, label: 'Create categories and roles', href: '/dashboard/settings' },
-    { done: setup.hasLinkedMembers, label: 'Link team members via Telegram', href: undefined },
-  ]
-
   const metricCards = [
     { label: 'Tasks Today', value: metrics.tasksToday, icon: ListChecks },
     { label: 'Approval Rate', value: `${metrics.approvalRate}%`, icon: TrendingUp },
@@ -127,51 +115,11 @@ export default async function DashboardPage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-6 md:space-y-8">
-      {/* Contextual guide tip for new users */}
-      {!setup.hasWorkspace && (
-        <GuideTip
-          id="dashboard-connect-workspace"
-          title="Connect your first Slack workspace"
-          description="Connect a Slack workspace to start routing messages automatically."
-        />
-      )}
-
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold">Overview</h1>
         <p className="text-muted-foreground text-sm mt-1">Your pipeline at a glance</p>
       </div>
-
-      {/* Setup Checklist */}
-      {!isFullySetUp && (
-        <Card>
-          <CardHeader className="pb-4">
-            <CardTitle className="text-lg text-primary">Get Started with SlackFlow</CardTitle>
-            <p className="text-sm text-muted-foreground">Complete these steps to start routing your Slack messages automatically.</p>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {steps.map((step, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  {step.done ? (
-                    <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0" />
-                  ) : (
-                    <Circle className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                  )}
-                  <span className={`text-sm ${step.done ? 'text-muted-foreground line-through' : 'text-foreground'}`}>
-                    Step {i + 1}: {step.label}
-                  </span>
-                  {!step.done && step.href && (
-                    <Link href={step.href} className="text-xs text-primary hover:underline ml-auto">
-                      Go &rarr;
-                    </Link>
-                  )}
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -29,7 +29,7 @@ function formatStatusLabel(status: string): string {
     .replace(/\b\w/g, c => c.toUpperCase())
 }
 
-/* ── Custom Tooltips ── */
+/* -- Custom Tooltips -- */
 
 function CategoryTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null

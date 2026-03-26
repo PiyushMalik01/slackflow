@@ -94,7 +94,7 @@ const FEATURES = [
   },
 ] as const
 
-/* ── Flying Paper Planes ───────────────────────────────────────────── */
+/* -- Flying Paper Planes --------------------------------------------- */
 
 function FlyingPlanes() {
   const [mounted, setMounted] = useState(false)
@@ -205,7 +205,7 @@ function FlyingPlanes() {
   )
 }
 
-/* ── Animated Grid Background ──────────────────────────────────────── */
+/* -- Animated Grid Background ---------------------------------------- */
 
 function GridBackground() {
   return (
@@ -249,7 +249,7 @@ function GridBackground() {
   )
 }
 
-/* ── Live Demo Animation (Hero) ──────────────────────────────────── */
+/* -- Live Demo Animation (Hero) ------------------------------------ */
 
 const DEMO_MESSAGES = [
   { text: 'The checkout page has a bug', category: 'Bug', emoji: '🐛', color: '#EF4444' },
@@ -350,7 +350,7 @@ function LiveDemo() {
   )
 }
 
-/* ── Magnetic Card (Feature Cards) ─────────────────────────────────── */
+/* -- Magnetic Card (Feature Cards) ----------------------------------- */
 
 function MagneticCard({ children, className }: { children: React.ReactNode; className?: string }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -385,7 +385,7 @@ function MagneticCard({ children, className }: { children: React.ReactNode; clas
   )
 }
 
-/* ── Animated Counter ──────────────────────────────────────────────── */
+/* -- Animated Counter ------------------------------------------------ */
 
 function AnimatedNumber({ value, suffix = '' }: { value: number; suffix?: string }) {
   const ref = useRef(null)
@@ -411,7 +411,7 @@ function AnimatedNumber({ value, suffix = '' }: { value: number; suffix?: string
   return <span ref={ref}>{display}{suffix}</span>
 }
 
-/* ── Pill Navbar ───────────────────────────────────────────────────── */
+/* -- Pill Navbar ----------------------------------------------------- */
 
 function Navbar() {
   const [scrolled, setScrolled] = useState(false)
@@ -496,7 +496,7 @@ function Navbar() {
   )
 }
 
-/* ── Landing Page ──────────────────────────────────────────────────── */
+/* -- Landing Page ---------------------------------------------------- */
 
 export default function LandingPage() {
   return (
@@ -504,7 +504,7 @@ export default function LandingPage() {
       <FlyingPlanes />
       <Navbar />
 
-      {/* ── Hero ──────────────────────────────────────────────────── */}
+      {/* -- Hero ---------------------------------------------------- */}
       <section className="relative isolate overflow-hidden pt-20">
         <GridBackground />
 
@@ -572,7 +572,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Stats Bar ─────────────────────────────────────────────── */}
+      {/* -- Stats Bar ----------------------------------------------- */}
       <section className="border-y bg-muted/30">
         <div className="mx-auto max-w-5xl px-6 py-8 grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
           {[
@@ -597,7 +597,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── How It Works ──────────────────────────────────────────── */}
+      {/* -- How It Works -------------------------------------------- */}
       <section id="how-it-works" className="py-20 sm:py-28 relative overflow-hidden">
         <div className="mx-auto max-w-5xl px-6">
           <motion.div
@@ -725,7 +725,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Features ──────────────────────────────────────────────── */}
+      {/* -- Features ------------------------------------------------ */}
       <section id="features" className="py-20 sm:py-28 bg-muted/20">
         <div className="mx-auto max-w-6xl px-6">
           <motion.div
@@ -770,7 +770,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── CTA ───────────────────────────────────────────────────── */}
+      {/* -- CTA ----------------------------------------------------- */}
       <section className="py-20 sm:py-28">
         <div className="mx-auto max-w-3xl px-6">
           <motion.div
@@ -803,7 +803,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Footer ────────────────────────────────────────────────── */}
+      {/* -- Footer -------------------------------------------------- */}
       <footer className="border-t py-10">
         <motion.div
           className="mx-auto max-w-6xl px-6 flex flex-col items-center gap-4 sm:flex-row sm:justify-between"

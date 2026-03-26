@@ -174,158 +174,164 @@ export function TaskCard({ task, categories, roles, templates, selected, onToggl
               )}
             </div>
 
-            {/* Single compact action bar */}
-            <div className="flex items-center gap-2 flex-wrap border-t pt-3">
-              {/* Assign/Reassign dropdown + button */}
-              <div className="flex items-center gap-1.5 w-full sm:w-auto">
+            {/* Action bar — grouped into routing and response sections */}
+            <div className="border-t pt-3 space-y-2">
+              {/* Row 1: Routing — Assign + Category */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mr-1">Route</span>
+                <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                  <select
+                    className="text-xs border rounded-md px-2.5 py-1.5 bg-background w-full sm:w-auto sm:min-w-[160px]"
+                    value={pendingRoleId}
+                    onChange={(e) => setPendingRoleId(e.target.value)}
+                  >
+                    <option value="">Assign to...</option>
+                    {roles?.map(r => (
+                      <option key={r.id} value={r.id}>{r.name} ({r.type})</option>
+                    ))}
+                  </select>
+                  {pendingRoleId && (
+                    <Button
+                      size="sm"
+                      className="text-xs h-7"
+                      disabled={assigning}
+                      onClick={async () => {
+                        setAssigning(true)
+                        try {
+                          const res = await fetch('/api/tasks', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: task.id, role_id: pendingRoleId }),
+                          })
+                          if (res.ok) {
+                            const role = roles?.find(r => r.id === pendingRoleId)
+                            if (task.category_id && task.workspace_id) {
+                              await fetch('/api/workspace-roles', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ workspace_id: task.workspace_id, category_id: task.category_id, role_id: pendingRoleId }),
+                              })
+                            }
+                            toast.success(`Assigned to ${role?.name || 'member'} — notification sent`)
+                            setPendingRoleId('')
+                            onTaskUpdated?.()
+                          } else {
+                            toast.error('Failed to assign')
+                          }
+                        } finally {
+                          setAssigning(false)
+                        }
+                      }}
+                    >
+                      {assigning ? <Loader2 className="size-3 animate-spin" /> : task.role_id ? 'Reassign' : 'Assign'}
+                    </Button>
+                  )}
+                </div>
+
+                <div className="hidden sm:block w-px h-5 bg-border mx-1" />
+
                 <select
-                  className="text-xs border rounded-md px-2.5 py-1.5 bg-background w-full sm:w-auto sm:min-w-[160px]"
-                  value={pendingRoleId}
-                  onChange={(e) => setPendingRoleId(e.target.value)}
+                  className="text-xs border rounded-md px-2.5 py-1.5 bg-background w-full sm:w-auto sm:min-w-[140px]"
+                  value={task.category_id || ''}
+                  onChange={async (e) => {
+                    const catId = e.target.value
+                    const cat = categories?.find(c => c.id === catId)
+                    if (!catId || !cat) return
+                    const res = await fetch('/api/tasks', {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ id: task.id, category_id: catId, category: cat.name }),
+                    })
+                    if (res.ok) { toast.success(`Moved to ${cat.name}`); onTaskUpdated?.() }
+                  }}
                 >
-                  <option value="">Assign to...</option>
-                  {roles?.map(r => (
-                    <option key={r.id} value={r.id}>{r.name} ({r.type})</option>
+                  <option value="" disabled>Category...</option>
+                  {categories?.map(c => (
+                    <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>
                   ))}
                 </select>
-                {pendingRoleId && (
-                  <Button
-                    size="sm"
-                    className="text-xs h-7"
-                    disabled={assigning}
-                    onClick={async () => {
-                      setAssigning(true)
-                      try {
-                        const res = await fetch('/api/tasks', {
-                          method: 'PUT',
-                          headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ id: task.id, role_id: pendingRoleId }),
-                        })
-                        if (res.ok) {
-                          const role = roles?.find(r => r.id === pendingRoleId)
-                          if (task.category_id && task.workspace_id) {
-                            await fetch('/api/workspace-roles', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ workspace_id: task.workspace_id, category_id: task.category_id, role_id: pendingRoleId }),
-                            })
-                          }
-                          toast.success(`Assigned to ${role?.name || 'member'} — notification sent`)
-                          setPendingRoleId('')
-                          onTaskUpdated?.()
-                        } else {
-                          toast.error('Failed to assign')
-                        }
-                      } finally {
-                        setAssigning(false)
-                      }
-                    }}
-                  >
-                    {assigning ? <Loader2 className="size-3 animate-spin" /> : task.role_id ? 'Reassign' : 'Assign'}
-                  </Button>
-                )}
               </div>
 
-              {/* Recategorize dropdown */}
-              <select
-                className="text-xs border rounded-md px-2.5 py-1.5 bg-background w-full sm:w-auto sm:min-w-[140px]"
-                value={task.category_id || ''}
-                onChange={async (e) => {
-                  const catId = e.target.value
-                  const cat = categories?.find(c => c.id === catId)
-                  if (!catId || !cat) return
-                  const res = await fetch('/api/tasks', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: task.id, category_id: catId, category: cat.name }),
-                  })
-                  if (res.ok) { toast.success(`Moved to ${cat.name}`); onTaskUpdated?.() }
-                }}
-              >
-                <option value="" disabled>Category...</option>
-                {categories?.map(c => (
-                  <option key={c.id} value={c.id}>{c.emoji} {c.name}</option>
-                ))}
-              </select>
+              {/* Row 2: Actions — Reply, Send, Dismiss, Delete */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider mr-1">Act</span>
+                <select
+                  className="text-xs border rounded-md px-2.5 py-1.5 bg-background w-full sm:w-auto sm:min-w-[140px]"
+                  defaultValue=""
+                  onChange={async (e) => {
+                    if (e.target.value === '_create') {
+                      window.location.href = '/dashboard/settings'
+                      return
+                    }
+                    const template = templates?.find(t => t.id === e.target.value)
+                    if (!template) return
+                    const res = await fetch('/api/tasks', {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        id: task.id,
+                        edited_text: template.content,
+                        status: 'edited',
+                        send_to_slack: true,
+                      }),
+                    })
+                    if (res.ok) {
+                      toast.success(`"${template.name}" sent to Slack`)
+                      onTaskUpdated?.()
+                    } else {
+                      toast.error('Failed to send reply')
+                    }
+                    e.target.value = ''
+                  }}
+                >
+                  <option value="">Quick reply...</option>
+                  {templates && templates.length > 0 ? (
+                    templates.map(t => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))
+                  ) : (
+                    <option value="_create">+ Create templates in Settings</option>
+                  )}
+                </select>
 
-              {/* Quick reply from template */}
-              <select
-                className="text-xs border rounded-md px-2.5 py-1.5 bg-background w-full sm:w-auto sm:min-w-[140px]"
-                defaultValue=""
-                onChange={async (e) => {
-                  if (e.target.value === '_create') {
-                    window.location.href = '/dashboard/settings'
-                    return
-                  }
-                  const template = templates?.find(t => t.id === e.target.value)
-                  if (!template) return
-                  const res = await fetch('/api/tasks', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      id: task.id,
-                      edited_text: template.content,
-                      status: 'edited',
-                      send_to_slack: true,
-                    }),
-                  })
-                  if (res.ok) {
-                    toast.success(`"${template.name}" sent to Slack`)
-                    onTaskUpdated?.()
-                  } else {
-                    toast.error('Failed to send reply')
-                  }
-                  e.target.value = ''
-                }}
-              >
-                <option value="">Quick reply...</option>
-                {templates && templates.length > 0 ? (
-                  templates.map(t => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))
-                ) : (
-                  <option value="_create">+ Create templates in Settings</option>
+                {task.draft_text && task.status !== 'sent' && (
+                  <Button variant="outline" size="sm" className="text-xs h-7" onClick={async () => {
+                    const res = await fetch('/api/tasks', {
+                      method: 'PUT',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ id: task.id, send_to_slack: true }),
+                    })
+                    if (res.ok) {
+                      toast.success('Reply sent to Slack')
+                      onTaskUpdated?.()
+                    } else {
+                      toast.error('Failed to send')
+                    }
+                  }}>
+                    Send to Slack
+                  </Button>
                 )}
-              </select>
 
-              {/* Direct send button for tasks with a draft that haven't been sent yet */}
-              {task.draft_text && task.status !== 'sent' && (
-                <Button variant="outline" size="sm" className="text-xs h-7" onClick={async () => {
-                  const res = await fetch('/api/tasks', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: task.id, send_to_slack: true }),
-                  })
-                  if (res.ok) {
-                    toast.success('Reply sent to Slack')
-                    onTaskUpdated?.()
-                  } else {
-                    toast.error('Failed to send')
-                  }
-                }}>
-                  Send to Slack
+                <div className="hidden sm:block w-px h-5 bg-border mx-1" />
+
+                {task.status !== 'dismissed' && task.status !== 'sent' && (
+                  <Button variant="outline" size="sm" className="text-xs h-7" onClick={async () => {
+                    await fetch('/api/tasks', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id: task.id, status: 'dismissed'}) })
+                    toast.success('Dismissed'); onTaskUpdated?.()
+                  }}>
+                    Dismiss
+                  </Button>
+                )}
+
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs h-7 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 ml-auto"
+                  onClick={() => setDeleteDialogOpen(true)}
+                >
+                  <Trash2 className="h-3 w-3" />
                 </Button>
-              )}
-
-              {/* Dismiss — only show when relevant */}
-              {task.status !== 'dismissed' && task.status !== 'sent' && (
-                <Button variant="outline" size="sm" className="text-xs h-7" onClick={async () => {
-                  await fetch('/api/tasks', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({id: task.id, status: 'dismissed'}) })
-                  toast.success('Dismissed'); onTaskUpdated?.()
-                }}>
-                  Dismiss
-                </Button>
-              )}
-
-              {/* Delete — pushed to right */}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs h-7 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950 ml-auto"
-                onClick={() => setDeleteDialogOpen(true)}
-              >
-                <Trash2 className="h-3 w-3" />
-              </Button>
+              </div>
             </div>
 
             {/* "+ New member" link — only show if task is unassigned */}

@@ -5,7 +5,8 @@ import { GuideTip } from '@/components/guide-tip'
 
 export const metadata = { title: 'Settings' }
 
-export default async function SettingsPage() {
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
+  const { tab: defaultTab } = await searchParams
   // Layout already validates auth and redirects — just get user ID for queries
   const user = await getAuthUser()
 
@@ -65,6 +66,7 @@ export default async function SettingsPage() {
         initialCategories={categories || []}
         workspaces={workspaces || []}
         aiStatus={aiStatus}
+        defaultTab={defaultTab}
       />
     </div>
   )

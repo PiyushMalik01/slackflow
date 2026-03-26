@@ -66,6 +66,7 @@ interface SettingsClientProps {
   initialCategories: Category[]
   workspaces: WorkspacePrefs[]
   aiStatus: AIStatus
+  defaultTab?: string
 }
 
 // -- Main Client --------------------------------------------------------------
@@ -74,17 +75,25 @@ export function SettingsClient({
   initialCategories,
   workspaces,
   aiStatus,
+  defaultTab,
 }: SettingsClientProps) {
+  const validTabs = ['categories', 'templates', 'preferences', 'ai']
+  const initialTab = defaultTab && validTabs.includes(defaultTab) ? defaultTab : 'categories'
+
   return (
-    <Tabs defaultValue="categories">
+    <Tabs defaultValue={initialTab}>
       <TabsList>
         <TabsTrigger value="categories">
           <Tag className="size-3.5" />
           Categories
         </TabsTrigger>
+        <TabsTrigger value="templates">
+          <Copy className="size-3.5" />
+          Templates
+        </TabsTrigger>
         <TabsTrigger value="preferences">
           <Sliders className="size-3.5" />
-          Preferences
+          Workspace Settings
         </TabsTrigger>
         <TabsTrigger value="ai">
           <Brain className="size-3.5" />
@@ -94,6 +103,10 @@ export function SettingsClient({
 
       <TabsContent value="categories">
         <CategoriesTab initialCategories={initialCategories} />
+      </TabsContent>
+
+      <TabsContent value="templates">
+        <TemplatesTab initialCategories={initialCategories} />
       </TabsContent>
 
       <TabsContent value="preferences">
@@ -262,7 +275,7 @@ function AITab({ initialStatus }: { initialStatus: AIStatus }) {
       <div>
         <h2 className="text-lg font-semibold">AI Configuration</h2>
         <p className="text-sm text-muted-foreground">
-          Connect your ChatGPT account or enter an API key to power AI classification and drafts.
+          SlackFlow uses AI to classify messages and draft responses. If your admin has set up a server API key, AI works automatically. You can also connect your own OpenAI account below.
         </p>
       </div>
 
@@ -457,21 +470,6 @@ function CategoriesTab({ initialCategories }: { initialCategories: Category[] })
   const [showAddForm, setShowAddForm] = useState(false)
   const [deleteCategoryId, setDeleteCategoryId] = useState<string | null>(null)
 
-  // Templates state
-  const [templates, setTemplates] = useState<ResponseTemplate[]>([])
-  const [loadingTemplates, setLoadingTemplates] = useState(true)
-  const [showTemplateForm, setShowTemplateForm] = useState(false)
-  const [editingTemplate, setEditingTemplate] = useState<ResponseTemplate | null>(null)
-  const [deleteTemplateId, setDeleteTemplateId] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetch('/api/templates')
-      .then(r => r.json())
-      .then(data => { if (Array.isArray(data)) setTemplates(data) })
-      .catch(() => {})
-      .finally(() => setLoadingTemplates(false))
-  }, [])
-
   return (
     <div className="space-y-4 mt-4">
       <div className="flex items-center justify-between">
@@ -597,120 +595,140 @@ function CategoriesTab({ initialCategories }: { initialCategories: Category[] })
           No categories configured. Click &quot;Add Category&quot; to create one.
         </div>
       )}
+    </div>
+  )
+}
 
-      {/* Response Templates Section */}
-      <div className="border-t pt-6 mt-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-lg font-semibold">Response Templates</h2>
-            <p className="text-sm text-muted-foreground">
-              Pre-written snippets for quick replies. Available on task cards as quick reply options.
-            </p>
-          </div>
-          <Button size="sm" onClick={() => { setEditingTemplate(null); setShowTemplateForm(true) }} disabled={showTemplateForm}>
-            <Plus className="size-3.5" />
-            Add Template
-          </Button>
+// -- Templates Tab --------------------------------------------------------------
+
+function TemplatesTab({ initialCategories }: { initialCategories: Category[] }) {
+  const [categories] = useState(initialCategories)
+  const [templates, setTemplates] = useState<ResponseTemplate[]>([])
+  const [loadingTemplates, setLoadingTemplates] = useState(true)
+  const [showTemplateForm, setShowTemplateForm] = useState(false)
+  const [editingTemplate, setEditingTemplate] = useState<ResponseTemplate | null>(null)
+  const [deleteTemplateId, setDeleteTemplateId] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/templates')
+      .then(r => r.json())
+      .then(data => { if (Array.isArray(data)) setTemplates(data) })
+      .catch(() => {})
+      .finally(() => setLoadingTemplates(false))
+  }, [])
+
+  return (
+    <div className="space-y-4 mt-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold">Response Templates</h2>
+          <p className="text-sm text-muted-foreground">
+            Pre-written snippets for quick replies. Available on task cards as quick reply options.
+          </p>
         </div>
+        <Button size="sm" onClick={() => { setEditingTemplate(null); setShowTemplateForm(true) }} disabled={showTemplateForm}>
+          <Plus className="size-3.5" />
+          Add Template
+        </Button>
+      </div>
 
-        {showTemplateForm && (
-          <TemplateForm
-            initial={editingTemplate}
-            categories={categories}
-            onSave={async (data) => {
-              if (editingTemplate) {
-                const res = await fetch('/api/templates', {
-                  method: 'PUT',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ id: editingTemplate.id, ...data }),
-                })
-                if (res.ok) {
-                  setTemplates(prev => prev.map(t => t.id === editingTemplate.id ? { ...t, ...data } : t))
-                  setShowTemplateForm(false)
-                  setEditingTemplate(null)
-                  toast.success('Template updated')
-                } else {
-                  toast.error('Failed to update template')
-                }
+      {showTemplateForm && (
+        <TemplateForm
+          initial={editingTemplate}
+          categories={categories}
+          onSave={async (data) => {
+            if (editingTemplate) {
+              const res = await fetch('/api/templates', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: editingTemplate.id, ...data }),
+              })
+              if (res.ok) {
+                setTemplates(prev => prev.map(t => t.id === editingTemplate.id ? { ...t, ...data } : t))
+                setShowTemplateForm(false)
+                setEditingTemplate(null)
+                toast.success('Template updated')
               } else {
-                const res = await fetch('/api/templates', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(data),
-                })
-                if (res.ok) {
-                  const tmpl = await res.json()
-                  setTemplates(prev => [...prev, tmpl])
-                  setShowTemplateForm(false)
-                  toast.success('Template created')
-                } else {
-                  toast.error('Failed to create template')
-                }
+                toast.error('Failed to update template')
               }
-            }}
-            onCancel={() => { setShowTemplateForm(false); setEditingTemplate(null) }}
-          />
-        )}
-
-        <div className="space-y-2">
-          {loadingTemplates ? (
-            <div className="py-6 text-center text-sm text-muted-foreground">
-              <Loader2 className="size-4 animate-spin inline mr-2" />
-              Loading templates...
-            </div>
-          ) : templates.length === 0 && !showTemplateForm ? (
-            <div className="py-8 text-center text-muted-foreground text-sm">
-              No templates yet. Create one to use as a quick reply on task cards.
-            </div>
-          ) : (
-            templates.map(tmpl => (
-              <div key={tmpl.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card group hover:border-border/80 transition-colors">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium">{tmpl.name}</span>
-                    {tmpl.category_id && (
-                      <Badge variant="secondary" className="text-[10px]">
-                        {categories.find(c => c.id === tmpl.category_id)?.emoji}{' '}
-                        {categories.find(c => c.id === tmpl.category_id)?.name || 'Category'}
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-xs text-muted-foreground truncate mt-0.5">
-                    {tmpl.content.length > 100 ? tmpl.content.substring(0, 100) + '...' : tmpl.content}
-                  </p>
-                </div>
-                <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                  <Button variant="ghost" size="icon-xs" onClick={() => { setEditingTemplate(tmpl); setShowTemplateForm(true) }}>
-                    <Edit2 className="size-3.5" />
-                  </Button>
-                  <Button variant="ghost" size="icon-xs" onClick={() => setDeleteTemplateId(tmpl.id)} className="hover:text-destructive">
-                    <Trash2 className="size-3.5" />
-                  </Button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        <ConfirmDialog
-          open={deleteTemplateId !== null}
-          onOpenChange={(open) => { if (!open) setDeleteTemplateId(null) }}
-          title="Delete Template"
-          description="Delete this response template? This action cannot be undone."
-          confirmLabel="Delete"
-          variant="danger"
-          onConfirm={async () => {
-            if (!deleteTemplateId) return
-            const res = await fetch(`/api/templates?id=${deleteTemplateId}`, { method: 'DELETE' })
-            if (res.ok) {
-              setTemplates(prev => prev.filter(t => t.id !== deleteTemplateId))
-              toast.success('Template deleted')
             } else {
-              toast.error('Failed to delete template')
+              const res = await fetch('/api/templates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+              })
+              if (res.ok) {
+                const tmpl = await res.json()
+                setTemplates(prev => [...prev, tmpl])
+                setShowTemplateForm(false)
+                toast.success('Template created')
+              } else {
+                toast.error('Failed to create template')
+              }
             }
           }}
+          onCancel={() => { setShowTemplateForm(false); setEditingTemplate(null) }}
         />
+      )}
+
+      <div className="space-y-2">
+        {loadingTemplates ? (
+          <div className="py-6 text-center text-sm text-muted-foreground">
+            <Loader2 className="size-4 animate-spin inline mr-2" />
+            Loading templates...
+          </div>
+        ) : templates.length === 0 && !showTemplateForm ? (
+          <div className="py-8 text-center text-muted-foreground text-sm">
+            No templates yet. Create one to use as a quick reply on task cards.
+          </div>
+        ) : (
+          templates.map(tmpl => (
+            <div key={tmpl.id} className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card group hover:border-border/80 transition-colors">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">{tmpl.name}</span>
+                  {tmpl.category_id && (
+                    <Badge variant="secondary" className="text-[10px]">
+                      {categories.find(c => c.id === tmpl.category_id)?.emoji}{' '}
+                      {categories.find(c => c.id === tmpl.category_id)?.name || 'Category'}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground truncate mt-0.5">
+                  {tmpl.content.length > 100 ? tmpl.content.substring(0, 100) + '...' : tmpl.content}
+                </p>
+              </div>
+              <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                <Button variant="ghost" size="icon-xs" onClick={() => { setEditingTemplate(tmpl); setShowTemplateForm(true) }}>
+                  <Edit2 className="size-3.5" />
+                </Button>
+                <Button variant="ghost" size="icon-xs" onClick={() => setDeleteTemplateId(tmpl.id)} className="hover:text-destructive">
+                  <Trash2 className="size-3.5" />
+                </Button>
+              </div>
+            </div>
+          ))
+        )}
       </div>
+
+      <ConfirmDialog
+        open={deleteTemplateId !== null}
+        onOpenChange={(open) => { if (!open) setDeleteTemplateId(null) }}
+        title="Delete Template"
+        description="Delete this response template? This action cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        onConfirm={async () => {
+          if (!deleteTemplateId) return
+          const res = await fetch(`/api/templates?id=${deleteTemplateId}`, { method: 'DELETE' })
+          if (res.ok) {
+            setTemplates(prev => prev.filter(t => t.id !== deleteTemplateId))
+            toast.success('Template deleted')
+          } else {
+            toast.error('Failed to delete template')
+          }
+        }}
+      />
     </div>
   )
 }
@@ -1086,9 +1104,9 @@ function PreferencesTab({ workspaces }: { workspaces: WorkspacePrefs[] }) {
   return (
     <div className="space-y-6 mt-4">
       <div>
-        <h2 className="text-lg font-semibold">Preferences</h2>
+        <h2 className="text-lg font-semibold">Workspace Settings</h2>
         <p className="text-sm text-muted-foreground">
-          Configure workspace settings and check platform health.
+          Configure workspace appearance and notification preferences.
         </p>
       </div>
 
@@ -1143,9 +1161,6 @@ function WorkspacePrefsCard({ workspace }: { workspace: WorkspacePrefs }) {
   const router = useRouter()
   const [accentColor, setAccentColor] = useState(workspace.accent_color || '#3B82F6')
   const [digestTime, setDigestTime] = useState(workspace.daily_digest_time || '')
-  const [filterMode, setFilterMode] = useState(workspace.message_filter_mode || 'all')
-  const [ignoredUsers, setIgnoredUsers] = useState((workspace.ignored_slack_users || []).join(', '))
-  const [whitelistedUsers, setWhitelistedUsers] = useState((workspace.whitelisted_slack_users || []).join(', '))
   const [saving, setSaving] = useState(false)
 
   async function handleSave() {
@@ -1157,9 +1172,6 @@ function WorkspacePrefsCard({ workspace }: { workspace: WorkspacePrefs }) {
         body: JSON.stringify({
           accent_color: accentColor,
           daily_digest_time: digestTime || null,
-          message_filter_mode: filterMode,
-          ignored_slack_users: ignoredUsers.split(',').map(s => s.trim()).filter(Boolean),
-          whitelisted_slack_users: whitelistedUsers.split(',').map(s => s.trim()).filter(Boolean),
         }),
       })
       if (res.ok) {
@@ -1239,73 +1251,6 @@ function WorkspacePrefsCard({ workspace }: { workspace: WorkspacePrefs }) {
           <p className="text-xs text-muted-foreground mt-1">
             {digestTime ? `Digest will be sent daily at ${digestTime}.` : 'Disabled — no daily digest will be sent.'}
           </p>
-        </div>
-
-        {/* Message Filter */}
-        <div>
-          <label className="block text-xs font-medium mb-2">Message Filter</label>
-          <p className="text-xs text-muted-foreground mb-3">
-            Control which Slack messages get processed by the AI pipeline.
-          </p>
-
-          <div className="space-y-2">
-            {[
-              { value: 'all', label: 'All messages', desc: 'Process every message in monitored channels' },
-              { value: 'ignore_team', label: 'Ignore team members', desc: 'Skip messages from specified Slack users (your team)' },
-              { value: 'whitelist_only', label: 'Only specific users', desc: 'Only process messages from whitelisted Slack users (clients)' },
-            ].map(opt => (
-              <label key={opt.value} className="flex items-start gap-3 p-3 rounded-lg border cursor-pointer hover:bg-accent/50 transition-colors">
-                <input
-                  type="radio"
-                  name={`filter-${workspace.id}`}
-                  value={opt.value}
-                  checked={filterMode === opt.value}
-                  onChange={() => setFilterMode(opt.value)}
-                  className="mt-0.5"
-                />
-                <div>
-                  <p className="text-sm font-medium">{opt.label}</p>
-                  <p className="text-xs text-muted-foreground">{opt.desc}</p>
-                </div>
-              </label>
-            ))}
-          </div>
-
-          {/* Ignored users list (for ignore_team mode) */}
-          {filterMode === 'ignore_team' && (
-            <div className="mt-3 space-y-2">
-              <label className="flex items-center gap-1.5 text-xs font-medium">
-                Team Slack User IDs to ignore
-                <SlackIdHelp />
-              </label>
-              <p className="text-xs text-muted-foreground">
-                Enter Slack user IDs separated by commas. Messages from these users will be skipped.
-              </p>
-              <Input
-                value={ignoredUsers}
-                onChange={e => setIgnoredUsers(e.target.value)}
-                placeholder="U0ANAQ85X3Q, U0BN7G3K1M2"
-              />
-            </div>
-          )}
-
-          {/* Whitelisted users (for whitelist_only mode) */}
-          {filterMode === 'whitelist_only' && (
-            <div className="mt-3 space-y-2">
-              <label className="flex items-center gap-1.5 text-xs font-medium">
-                Whitelisted Slack User IDs
-                <SlackIdHelp />
-              </label>
-              <p className="text-xs text-muted-foreground">
-                Only messages from these Slack users will be processed. Everyone else is ignored.
-              </p>
-              <Input
-                value={whitelistedUsers}
-                onChange={e => setWhitelistedUsers(e.target.value)}
-                placeholder="U0CLIENT1, U0CLIENT2"
-              />
-            </div>
-          )}
         </div>
 
         <div className="flex justify-end pt-1">

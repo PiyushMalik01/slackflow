@@ -48,6 +48,7 @@ export function WorkspaceSwitcher({ className }: { className?: string }) {
     const channel = supabase
       .channel('ws-switcher')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'workspaces' }, () => load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'workspace_members' }, () => load())
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }

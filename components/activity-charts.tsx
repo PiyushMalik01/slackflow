@@ -45,7 +45,7 @@ function formatActionLabel(action: string): string {
   return ACTION_LABELS[action] || action.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
-/* ── Custom Tooltips ── */
+/* -- Custom Tooltips -- */
 
 function DailyTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null

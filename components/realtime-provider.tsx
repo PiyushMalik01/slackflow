@@ -11,6 +11,7 @@ const REALTIME_TABLES = [
   'categories',
   'workspaces',
   'workspace_roles',
+  'workspace_members',
   'invite_tokens',
 ] as const
 
