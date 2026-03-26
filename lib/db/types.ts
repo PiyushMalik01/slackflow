@@ -33,6 +33,9 @@ export interface Database {
           team_group_chat_id: string | null
           daily_digest_time: string | null
           accent_color: string
+          message_filter_mode: string
+          whitelisted_slack_users: string[]
+          ignored_slack_users: string[]
         }
         Insert: Omit<Database['public']['Tables']['workspaces']['Row'], 'id' | 'installed_at' | 'updated_at'> & {
           id?: string
@@ -42,6 +45,9 @@ export interface Database {
           team_group_chat_id?: string | null
           daily_digest_time?: string | null
           accent_color?: string
+          message_filter_mode?: string
+          whitelisted_slack_users?: string[]
+          ignored_slack_users?: string[]
         }
         Update: Partial<Database['public']['Tables']['workspaces']['Insert']>
       }

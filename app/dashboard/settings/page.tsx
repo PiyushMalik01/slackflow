@@ -27,6 +27,9 @@ export default async function SettingsPage() {
     accent_color: w.accent_color,
     team_group_chat_id: w.team_group_chat_id,
     daily_digest_time: w.daily_digest_time,
+    message_filter_mode: w.message_filter_mode,
+    ignored_slack_users: w.ignored_slack_users,
+    whitelisted_slack_users: w.whitelisted_slack_users,
   }))
 
   // Seed defaults if empty (sequential — depends on categories result)

@@ -94,14 +94,6 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
     return
   }
 
-  // Idempotency check
-  const eventId = event.event_id || `${workspaceId}:${event.channel}:${event.ts}`
-  const claimed = await tryClaimEvent(eventId, workspaceId)
-  if (!claimed) {
-    log.info('Duplicate event, skipping')
-    return
-  }
-
   // Load workspace
   const { data: workspace } = await supabase
     .from('workspaces')
@@ -118,6 +110,33 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
   const monitoredChannels = workspace.monitored_channels || []
   if (monitoredChannels.length > 0 && !monitoredChannels.includes(event.channel)) {
     log.debug('Channel not monitored, skipping')
+    return
+  }
+
+  // Message filtering
+  const filterMode = workspace.message_filter_mode || 'all'
+
+  if (filterMode === 'ignore_team') {
+    const ignoredUsers: string[] = workspace.ignored_slack_users || []
+    if (ignoredUsers.includes(event.user)) {
+      log.debug({ user: event.user }, 'Skipping message from ignored team member')
+      return
+    }
+  }
+
+  if (filterMode === 'whitelist_only') {
+    const whitelistedUsers: string[] = workspace.whitelisted_slack_users || []
+    if (whitelistedUsers.length > 0 && !whitelistedUsers.includes(event.user)) {
+      log.debug({ user: event.user }, 'Skipping message from non-whitelisted user')
+      return
+    }
+  }
+
+  // Idempotency check — placed after filtering so we don't claim events we'll skip
+  const eventId = event.event_id || `${workspaceId}:${event.channel}:${event.ts}`
+  const claimed = await tryClaimEvent(eventId, workspaceId)
+  if (!claimed) {
+    log.info('Duplicate event, skipping')
     return
   }
 

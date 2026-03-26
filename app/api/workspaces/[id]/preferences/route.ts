@@ -9,7 +9,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params
 
-  let body: { accent_color?: string; team_group_chat_id?: string | null; daily_digest_time?: string | null }
+  let body: {
+    accent_color?: string
+    team_group_chat_id?: string | null
+    daily_digest_time?: string | null
+    message_filter_mode?: string
+    ignored_slack_users?: string[]
+    whitelisted_slack_users?: string[]
+  }
   try {
     body = await req.json()
   } catch {
@@ -32,6 +39,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   if (body.accent_color !== undefined) updateData.accent_color = body.accent_color
   if (body.team_group_chat_id !== undefined) updateData.team_group_chat_id = body.team_group_chat_id
   if (body.daily_digest_time !== undefined) updateData.daily_digest_time = body.daily_digest_time
+  if (body.message_filter_mode !== undefined) updateData.message_filter_mode = body.message_filter_mode
+  if (body.ignored_slack_users !== undefined) updateData.ignored_slack_users = body.ignored_slack_users
+  if (body.whitelisted_slack_users !== undefined) updateData.whitelisted_slack_users = body.whitelisted_slack_users
 
   if (Object.keys(updateData).length === 0) {
     return json400('No fields to update')

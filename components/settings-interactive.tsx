@@ -47,6 +47,9 @@ interface WorkspacePrefs {
   accent_color?: string | null
   team_group_chat_id?: string | null
   daily_digest_time?: string | null
+  message_filter_mode?: string
+  ignored_slack_users?: string[]
+  whitelisted_slack_users?: string[]
 }
 
 type AIStatus =
@@ -1111,6 +1114,9 @@ function WorkspacePrefsCard({ workspace }: { workspace: WorkspacePrefs }) {
   const router = useRouter()
   const [accentColor, setAccentColor] = useState(workspace.accent_color || '#3B82F6')
   const [digestTime, setDigestTime] = useState(workspace.daily_digest_time || '')
+  const [filterMode, setFilterMode] = useState(workspace.message_filter_mode || 'all')
+  const [ignoredUsers, setIgnoredUsers] = useState((workspace.ignored_slack_users || []).join(', '))
+  const [whitelistedUsers, setWhitelistedUsers] = useState((workspace.whitelisted_slack_users || []).join(', '))
   const [saving, setSaving] = useState(false)
 
   async function handleSave() {
@@ -1122,6 +1128,9 @@ function WorkspacePrefsCard({ workspace }: { workspace: WorkspacePrefs }) {
         body: JSON.stringify({
           accent_color: accentColor,
           daily_digest_time: digestTime || null,
+          message_filter_mode: filterMode,
+          ignored_slack_users: ignoredUsers.split(',').map(s => s.trim()).filter(Boolean),
+          whitelisted_slack_users: whitelistedUsers.split(',').map(s => s.trim()).filter(Boolean),
         }),
       })
       if (res.ok) {
@@ -1201,6 +1210,70 @@ function WorkspacePrefsCard({ workspace }: { workspace: WorkspacePrefs }) {
           <p className="text-xs text-muted-foreground mt-1">
             {digestTime ? `Digest will be sent daily at ${digestTime}.` : 'Disabled — no daily digest will be sent.'}
           </p>
+        </div>
+
+        {/* Message Filter */}
+        <div>
+          <label className="block text-xs font-medium mb-2">Message Filter</label>
+          <p className="text-xs text-muted-foreground mb-3">
+            Control which Slack messages get processed by the AI pipeline.
+          </p>
+
+          <div className="space-y-2">
+            {[
+              { value: 'all', label: 'All messages', desc: 'Process every message in monitored channels' },
+              { value: 'ignore_team', label: 'Ignore team members', desc: 'Skip messages from specified Slack users (your team)' },
+              { value: 'whitelist_only', label: 'Only specific users', desc: 'Only process messages from whitelisted Slack users (clients)' },
+            ].map(opt => (
+              <label key={opt.value} className="flex items-start gap-3 p-3 rounded-lg border cursor-pointer hover:bg-accent/50 transition-colors">
+                <input
+                  type="radio"
+                  name={`filter-${workspace.id}`}
+                  value={opt.value}
+                  checked={filterMode === opt.value}
+                  onChange={() => setFilterMode(opt.value)}
+                  className="mt-0.5"
+                />
+                <div>
+                  <p className="text-sm font-medium">{opt.label}</p>
+                  <p className="text-xs text-muted-foreground">{opt.desc}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+
+          {/* Ignored users list (for ignore_team mode) */}
+          {filterMode === 'ignore_team' && (
+            <div className="mt-3 space-y-2">
+              <label className="block text-xs font-medium">Team Slack User IDs to ignore</label>
+              <p className="text-xs text-muted-foreground">
+                Enter Slack user IDs (e.g., U0ANAQ85X3Q) separated by commas. Messages from these users will be skipped.
+              </p>
+              <Input
+                value={ignoredUsers}
+                onChange={e => setIgnoredUsers(e.target.value)}
+                placeholder="U0ANAQ85X3Q, U0BN7G3K1M2"
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Tip: Find Slack user IDs by clicking a user profile in Slack → More → Copy member ID.
+              </p>
+            </div>
+          )}
+
+          {/* Whitelisted users (for whitelist_only mode) */}
+          {filterMode === 'whitelist_only' && (
+            <div className="mt-3 space-y-2">
+              <label className="block text-xs font-medium">Whitelisted Slack User IDs</label>
+              <p className="text-xs text-muted-foreground">
+                Only messages from these Slack users will be processed. Everyone else is ignored.
+              </p>
+              <Input
+                value={whitelistedUsers}
+                onChange={e => setWhitelistedUsers(e.target.value)}
+                placeholder="U0CLIENT1, U0CLIENT2"
+              />
+            </div>
+          )}
         </div>
 
         <div className="flex justify-end pt-1">
