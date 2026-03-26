@@ -212,17 +212,41 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
   )
   const categoryId = matchedCategory?.id || null
 
-  // Resolve role for this category (resolveRole returns a role row or null)
+  // Resolve role for this category
+  // Try the exact category_id first, then fall back to matching by category NAME
+  // (needed because shared workspaces may have routing set up by a different user
+  // whose category IDs differ from the workspace owner's)
   let role: { id: string; telegram_chat_id: string | null; name: string } | null = null
+
   if (categoryId) {
     role = await resolveRole(workspaceId, categoryId)
-    if (role) {
-      log.info({ roleId: role.id, roleName: role.name, hasTelegram: !!role.telegram_chat_id }, 'Role resolved for category')
-    } else {
-      log.warn({ workspaceId, categoryId, category: aiResult.category }, 'No role mapped for this category — task will be unassigned')
+  }
+
+  // If no role found by exact ID, try by category name across all workspace_roles
+  if (!role && aiResult.category) {
+    const { data: routingByName } = await supabase
+      .from('workspace_roles')
+      .select('*, roles(*), categories(name)')
+      .eq('workspace_id', workspaceId)
+
+    if (routingByName) {
+      const match = routingByName.find((wr: any) =>
+        (wr.categories?.name || '').toLowerCase() === aiResult.category.toLowerCase()
+      )
+      if (match?.roles) {
+        role = match.roles as typeof role
+        // Also update categoryId to the matched one for consistency
+        if (match.category_id) {
+          await supabase.from('tasks').update({ category_id: match.category_id }).eq('id', task.id)
+        }
+      }
     }
+  }
+
+  if (role) {
+    log.info({ roleId: role.id, roleName: role.name, hasTelegram: !!role.telegram_chat_id }, 'Role resolved for category')
   } else {
-    log.warn('No category ID — cannot resolve role')
+    log.warn({ workspaceId, categoryId, category: aiResult.category }, 'No role mapped for this category — task will be unassigned')
   }
 
   // Update task with category + role info (AI pipeline already set draft/category fields)
