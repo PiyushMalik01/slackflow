@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Building2, ChevronDown, ChevronUp, Hash, Loader2,
+  Building2, ChevronDown, ChevronUp, Hash, Lock, Loader2,
   AlertTriangle, Calendar, Radio, Trash2, LogOut, Users,
   Filter, Save, HelpCircle
 } from 'lucide-react'
@@ -19,6 +19,7 @@ interface Channel {
   id: string
   name: string
   is_monitored: boolean
+  is_private?: boolean
   is_member?: boolean
 }
 
@@ -87,6 +88,7 @@ export function WorkspaceCard({
   const [ignoredUsers, setIgnoredUsers] = useState((workspace.ignored_slack_users || []).join(', '))
   const [whitelistedUsers, setWhitelistedUsers] = useState((workspace.whitelisted_slack_users || []).join(', '))
   const [savingFilter, setSavingFilter] = useState(false)
+  const [privateChannelGuide, setPrivateChannelGuide] = useState<string | null>(null)
 
   const monitoredCount = workspace.monitored_channels?.length || 0
   const accentColor = workspace.accent_color || '#3B82F6'
@@ -138,10 +140,16 @@ export function WorkspaceCard({
       const data = await res.json()
       if (!res.ok || data.errors?.length) {
         const errMsg = data.errors?.[0] || data.error || 'Failed to update channel'
-        toast.error(errMsg)
+        // Check if it's a private channel invite issue — show inline guide instead of toast
+        if (errMsg.includes('private channel') || errMsg.includes('/invite')) {
+          setPrivateChannelGuide(channelId)
+        } else {
+          toast.error(errMsg)
+        }
         setChannels(channels) // revert
         return
       }
+      setPrivateChannelGuide(null)
       if (isEnabling) {
         toast.success(`Bot joined #${targetChannel?.name} — now monitoring`)
       } else {
@@ -231,13 +239,23 @@ export function WorkspaceCard({
             </div>
           </CardHeader>
 
-          {/* Reauth banner */}
+          {/* Reauth banner — shows when scope error detected */}
           {needsReauth && (
             <div className="mx-4 mb-3 flex items-center gap-2 bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 px-3 py-2 rounded-lg text-xs">
               <AlertTriangle className="size-3.5 flex-shrink-0" />
-              <span>This workspace may need re-authorization. Some features require additional scopes.</span>
-              <Button variant="outline" size="xs" asChild className="ml-auto flex-shrink-0">
+              <span>This workspace needs re-authorization for new features (private channels, etc.).</span>
+              <Button variant="outline" size="sm" asChild className="ml-auto flex-shrink-0 text-xs h-7">
                 <Link href="/api/slack/install">Re-authorize</Link>
+              </Button>
+            </div>
+          )}
+
+          {/* Re-authorize link — always available */}
+          {!needsReauth && (
+            <div className="mx-4 mb-3 flex items-center justify-between text-xs text-muted-foreground">
+              <span>Need private channel access or updated permissions?</span>
+              <Button variant="link" size="sm" asChild className="text-xs h-auto p-0 text-primary">
+                <Link href="/api/slack/install">Re-authorize Slack</Link>
               </Button>
             </div>
           )}
@@ -292,10 +310,38 @@ export function WorkspaceCard({
                           </svg>
                         )}
                       </div>
-                      <Hash className="size-3.5 flex-shrink-0 opacity-50" />
+                      {ch.is_private ? (
+                        <Lock className="size-3.5 flex-shrink-0 opacity-50" />
+                      ) : (
+                        <Hash className="size-3.5 flex-shrink-0 opacity-50" />
+                      )}
                       <span className="truncate">{ch.name}</span>
                     </button>
                   ))
+                )}
+
+                {/* Private channel invite guide */}
+                {privateChannelGuide && (
+                  <div className="mt-3 p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 text-xs space-y-2">
+                    <div className="flex items-start gap-2">
+                      <Lock className="size-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-amber-700 dark:text-amber-300">Private channel — manual invite needed</p>
+                        <p className="text-muted-foreground mt-1">The bot can't join private channels automatically. Follow these steps:</p>
+                      </div>
+                    </div>
+                    <ol className="list-decimal list-inside space-y-1 text-muted-foreground pl-5">
+                      <li>Open the private channel in <strong>Slack</strong></li>
+                      <li>Type <code className="bg-muted px-1.5 py-0.5 rounded text-[11px]">/invite @SlackFlow</code> and press Enter</li>
+                      <li>Come back here and <strong>toggle it on again</strong></li>
+                    </ol>
+                    <button
+                      onClick={() => setPrivateChannelGuide(null)}
+                      className="text-[11px] text-primary hover:underline"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
                 )}
               </div>
             )}

@@ -74,16 +74,42 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     // Join newly monitored channels
     for (const channelId of added) {
       try {
-        await slack.conversations.join({ channel: channelId })
-        // Post a welcome message in the channel
-        await slack.chat.postMessage({
-          channel: channelId,
-          text: '👋 SlackFlow is now monitoring this channel. Messages will be classified by AI and routed to the right team member.',
-        })
-        logger.info({ channelId, workspaceId: id }, 'Bot joined channel')
+        // Check if this is a private channel — bot can't self-join those
+        let isPrivate = false
+        try {
+          const info = await slack.conversations.info({ channel: channelId })
+          isPrivate = info.channel?.is_private || false
+        } catch { /* ignore */ }
+
+        if (isPrivate) {
+          // For private channels, check if bot is already a member
+          try {
+            const info = await slack.conversations.info({ channel: channelId })
+            if (info.channel?.is_member) {
+              // Bot is already in the channel — just post welcome
+              await slack.chat.postMessage({
+                channel: channelId,
+                text: '👋 SlackFlow is now monitoring this private channel.',
+              })
+              logger.info({ channelId }, 'Bot already in private channel, monitoring enabled')
+            } else {
+              // Bot is NOT in the private channel — can't self-join
+              joinErrors.push(`This is a private channel. To enable monitoring:\n1. Open the channel in Slack\n2. Type /invite @SlackFlow\n3. Come back here and toggle it on again`)
+            }
+          } catch {
+            joinErrors.push(`Private channel requires manual invite. Type /invite @SlackFlow in the channel.`)
+          }
+        } else {
+          // Public channel — auto-join
+          await slack.conversations.join({ channel: channelId })
+          await slack.chat.postMessage({
+            channel: channelId,
+            text: '👋 SlackFlow is now monitoring this channel. Messages will be classified by AI and routed to the right team member.',
+          })
+          logger.info({ channelId, workspaceId: id }, 'Bot joined channel')
+        }
       } catch (err: any) {
         if (err?.data?.error === 'already_in_channel') {
-          // Already in channel — just update monitoring, no error
           logger.info({ channelId }, 'Bot already in channel, monitoring enabled')
         } else if (err?.data?.error === 'missing_scope') {
           joinErrors.push(`Missing permission — please re-authorize the Slack app with updated scopes`)
