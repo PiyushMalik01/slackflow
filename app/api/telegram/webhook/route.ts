@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { verifyTelegramWebhook } from '@/lib/utils/security'
-import { handleApprove, handleEdit, handleDismiss, handleViewOriginal, handleEditReply, handleEditConfirm, handleEditCancel, handleSnooze, handleReassign } from '@/lib/telegram/callbacks'
+import { handleApprove, handleEdit, handleDismiss, handleViewOriginal, handleEditReply, handleEditConfirm, handleEditCancel, handleSnooze, handleReassign, handleRoute, handleRedirect, handleRouteSelect, handleRouteCancel } from '@/lib/telegram/callbacks'
 import { handleStartCommand, handlePendingCommand, handleStatusCommand, handleHelpCommand, handleBoardCommand, handleSummaryCommand } from '@/lib/telegram/commands'
 import { processDueSnoozes } from '@/lib/telegram/snooze-processor'
 import { logger } from '@/lib/utils/logger'
@@ -82,6 +82,24 @@ export async function POST(req: NextRequest) {
           break
         case 'reassign':
           await handleReassign(taskId, chatId, messageId)
+          break
+        case 'route':
+          await handleRoute(taskId, chatId, messageId)
+          break
+        case 'redir':
+          await handleRedirect(taskId, chatId, messageId)
+          break
+        default:
+          if (action.startsWith('r_')) {
+            if (action === 'r_cancel') {
+              await handleRouteCancel(taskId, chatId, messageId)
+            } else {
+              const index = parseInt(action.substring(2), 10)
+              if (!isNaN(index)) {
+                await handleRouteSelect(taskId, chatId, messageId, index)
+              }
+            }
+          }
           break
       }
 

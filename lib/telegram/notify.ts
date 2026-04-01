@@ -17,23 +17,34 @@ interface NotifyParams {
   confidence: number
   originalText: string
   draftText: string | null
+  title?: string
+  expectedBehavior?: string
+  reporter?: string
 }
 
 export async function notifyAssignee(params: NotifyParams): Promise<number | null> {
-  const { chatId, taskId, workspaceName, companyName, channel, senderName, category, categoryEmoji, confidence, originalText, draftText } = params
+  const { chatId, taskId, workspaceName, companyName, channel, senderName, category, categoryEmoji, confidence, originalText, draftText, title, expectedBehavior, reporter } = params
 
   if (!chatId) {
     logger.warn({ taskId }, 'No chat ID for assignee, skipping notification')
     return null
   }
 
-  const confidenceBar = confidence >= 0.8 ? 'High' : confidence >= 0.5 ? 'Medium' : 'Low'
-
   const companyLabel = companyName && companyName !== 'SlackFlow' ? companyName : workspaceName
-  let message = `<b>${categoryEmoji} ${escapeHtml(category)}</b> — ${escapeHtml(companyLabel)} (via SlackFlow)\n`
-  message += `Channel: <b>#${escapeHtml(channel)}</b>\n`
-  message += `From: ${escapeHtml(senderName)}\n\n`
-  message += `<b>Message:</b>\n${escapeHtml(originalText.substring(0, 300))}${originalText.length > 300 ? '...' : ''}\n`
+  let message = `${categoryEmoji} ${escapeHtml(category)} — ${escapeHtml(companyLabel)}\n`
+
+  if (title) {
+    message += `\n<b>${escapeHtml(title)}</b>\n`
+  }
+
+  message += `Reporter: ${escapeHtml(reporter || senderName)}\n`
+  message += `Channel: #${escapeHtml(channel)}\n`
+
+  if (expectedBehavior) {
+    message += `Expected: ${escapeHtml(expectedBehavior)}\n`
+  }
+
+  message += `\n<b>Message:</b>\n${escapeHtml(originalText.substring(0, 300))}${originalText.length > 300 ? '...' : ''}\n`
 
   if (draftText) {
     message += `\n<b>AI Draft:</b>\n<i>${escapeHtml(draftText.substring(0, 200))}${draftText.length > 200 ? '...' : ''}</i>\n`
@@ -47,15 +58,16 @@ export async function notifyAssignee(params: NotifyParams): Promise<number | nul
       reply_markup: {
         inline_keyboard: [
           [
-            { text: 'Approve', callback_data: `${taskId}:approve` },
+            { text: 'Reply to Slack', callback_data: `${taskId}:approve` },
             { text: 'Edit', callback_data: `${taskId}:edit` },
+          ],
+          [
+            { text: 'Route to...', callback_data: `${taskId}:route` },
+            { text: 'Redirect', callback_data: `${taskId}:redir` },
           ],
           [
             { text: 'Dismiss', callback_data: `${taskId}:dismiss` },
             { text: 'Snooze 1h', callback_data: `${taskId}:snooze` },
-          ],
-          [
-            { text: 'Not mine \u21a9', callback_data: `${taskId}:reassign` },
           ],
         ],
       },

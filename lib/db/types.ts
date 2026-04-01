@@ -59,12 +59,14 @@ export interface Database {
           name: string
           telegram_chat_id: string | null
           status: 'pending_link' | 'linked' | 'unlinked'
+          is_authority: boolean
           created_at: string
         }
-        Insert: Omit<Database['public']['Tables']['roles']['Row'], 'id' | 'created_at'> & {
+        Insert: Omit<Database['public']['Tables']['roles']['Row'], 'id' | 'created_at' | 'is_authority'> & {
           id?: string
           created_at?: string
           status?: 'pending_link' | 'linked' | 'unlinked'
+          is_authority?: boolean
         }
         Update: Partial<Database['public']['Tables']['roles']['Insert']>
       }
@@ -202,8 +204,9 @@ export interface Database {
           id: string
           chat_id: string
           task_id: string
-          state: 'editing' | 'confirming'
+          state: 'editing' | 'confirming' | 'routing' | 'redirecting'
           draft_text: string | null
+          target_action: string | null
           expires_at: string
           created_at: string
         }
@@ -211,6 +214,7 @@ export interface Database {
           id?: string
           created_at?: string
           draft_text?: string | null
+          target_action?: string | null
         }
         Update: Partial<Database['public']['Tables']['telegram_sessions']['Insert']>
       }
@@ -373,8 +377,9 @@ export interface TelegramSession {
   id: string
   chat_id: string
   task_id: string
-  state: 'editing' | 'confirming'
+  state: 'editing' | 'confirming' | 'routing' | 'redirecting'
   draft_text: string | null
+  target_action: string | null
   expires_at: string
   created_at: string
 }

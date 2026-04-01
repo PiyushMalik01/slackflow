@@ -171,6 +171,10 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
     log.warn({ err }, 'Failed to resolve sender, using fallback')
   }
 
+  // Parse @mentions from Slack message
+  const mentionRegex = /<@(U[A-Z0-9]+)>/g
+  const mentions = [...event.text.matchAll(mentionRegex)].map(m => m[1])
+
   // Fetch thread context if this is a thread reply
   let threadContext: string | null = null
   if (event.thread_ts && event.thread_ts !== event.ts) {
@@ -235,17 +239,41 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
   const categoryId = matchedCategory?.id || null
 
   // Resolve role for this category
-  // Try the exact category_id first, then fall back to matching by category NAME
-  // (needed because shared workspaces may have routing set up by a different user
-  // whose category IDs differ from the workspace owner's)
+  // Try @mention override first, then the exact category_id, then fall back to matching by category NAME
   let role: { id: string; telegram_chat_id: string | null; name: string } | null = null
+  let mentionOverride = false
 
-  if (categoryId) {
+  // @mention override: if someone was explicitly mentioned, route to them
+  if (mentions.length > 0) {
+    for (const slackUserId of mentions) {
+      try {
+        const cachedUser = await resolveSlackUser(accessToken, workspaceId, slackUserId)
+        const { data: matchedRole } = await supabase
+          .from('roles')
+          .select('id, name, telegram_chat_id, is_authority')
+          .eq('owner_id', workspace.owner_id)
+          .eq('status', 'linked')
+          .ilike('name', cachedUser.display_name)
+          .maybeSingle()
+
+        if (matchedRole?.telegram_chat_id) {
+          role = matchedRole
+          mentionOverride = true
+          log.info({ slackUserId, roleName: matchedRole.name }, 'Routed via @mention')
+          break
+        }
+      } catch (err) {
+        log.warn({ err, slackUserId }, 'Failed to resolve @mention')
+      }
+    }
+  }
+
+  if (!role && categoryId) {
     role = await resolveRole(workspaceId, categoryId)
   }
 
   // If no role found by exact ID, try by category name across all workspace_roles
-  if (!role && aiResult.category) {
+  if (!role && !mentionOverride && aiResult.category) {
     const { data: routingByName } = await supabase
       .from('workspace_roles')
       .select('*, roles(*), categories(name)')
@@ -293,6 +321,9 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
         confidence: aiResult.confidence,
         originalText: event.text,
         draftText: aiResult.draft,
+        title: aiResult.title,
+        expectedBehavior: aiResult.expectedBehavior,
+        reporter: aiResult.reporter || senderName,
       })
       if (msgId) {
         await supabase.from('tasks').update({ telegram_message_id: msgId }).eq('id', task.id)
@@ -333,6 +364,9 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
             confidence: addTask.category_confidence || 0,
             originalText: addTask.original_text,
             draftText: addTask.draft_text,
+            title: aiResult.title,
+            expectedBehavior: aiResult.expectedBehavior,
+            reporter: aiResult.reporter || senderName,
           })
         } catch (err) {
           log.error({ err }, 'Failed to notify for additional task')

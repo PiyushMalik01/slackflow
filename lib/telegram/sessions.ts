@@ -5,8 +5,9 @@ export interface TgSession {
   id: string
   chat_id: string
   task_id: string
-  state: 'editing' | 'confirming'
+  state: 'editing' | 'confirming' | 'routing' | 'redirecting'
   draft_text: string | null
+  target_action: string | null
   expires_at: string
 }
 
@@ -53,6 +54,21 @@ export async function updateSessionState(
 export async function deleteSession(sessionId: string): Promise<void> {
   const supabase = getServiceClient()
   await supabase.from('telegram_sessions').delete().eq('id', sessionId)
+}
+
+export async function startRoutingSession(chatId: string, taskId: string, state: 'routing' | 'redirecting', roleList: string): Promise<TgSession> {
+  const supabase = getServiceClient()
+  await supabase.from('telegram_sessions').delete().eq('chat_id', chatId)
+
+  const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString()
+  const { data, error } = await supabase
+    .from('telegram_sessions')
+    .insert({ chat_id: chatId, task_id: taskId, state, expires_at: expiresAt, target_action: roleList })
+    .select()
+    .single()
+
+  if (error) throw error
+  return data as TgSession
 }
 
 export async function cleanupExpiredSessions(): Promise<void> {

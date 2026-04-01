@@ -1,7 +1,7 @@
 import { bot } from '@/lib/telegram/bot'
 import { getServiceClient } from '@/lib/db/client'
 import { getCompanyName } from '@/lib/db/queries'
-import { startEditSession, getActiveSession, updateSessionState, deleteSession } from '@/lib/telegram/sessions'
+import { startEditSession, getActiveSession, updateSessionState, deleteSession, startRoutingSession } from '@/lib/telegram/sessions'
 import { postReplyToSlack } from '@/lib/slack/egress'
 import { notifyTeamGroup } from '@/lib/telegram/group-notify'
 import { logger } from '@/lib/utils/logger'
@@ -234,4 +234,148 @@ export async function handleReassign(taskId: string, chatId: number, messageId: 
       })
     }
   }
+}
+
+export async function handleRoute(taskId: string, chatId: number, messageId: number): Promise<void> {
+  const supabase = getServiceClient()
+  const { data: task } = await supabase.from('tasks').select('workspace_id').eq('id', taskId).maybeSingle()
+  if (!task) return
+
+  const { data: workspace } = await supabase.from('workspaces').select('owner_id').eq('id', task.workspace_id).maybeSingle()
+  if (!workspace) return
+
+  const { data: roles } = await supabase
+    .from('roles')
+    .select('id, name, type, is_authority, telegram_chat_id, status')
+    .eq('owner_id', workspace.owner_id)
+    .eq('status', 'linked')
+    .order('is_authority', { ascending: false })
+    .order('name')
+
+  if (!roles || roles.length === 0) {
+    await bot.sendMessage(chatId, 'No linked team members available to route to.')
+    return
+  }
+
+  const roleIds = roles.map(r => r.id)
+  await startRoutingSession(String(chatId), taskId, 'routing', JSON.stringify(roleIds))
+
+  const memberButtons = roles.slice(0, 10).map((r, i) => ([{
+    text: `${r.is_authority ? '\u2b50 ' : ''}${r.name} (${r.type})`,
+    callback_data: `${taskId}:r_${i}`,
+  }]))
+  memberButtons.push([{ text: 'Cancel', callback_data: `${taskId}:r_cancel` }])
+
+  await bot.sendMessage(chatId, '<b>Route to:</b>\nSelect a team member to route this task to:', {
+    parse_mode: 'HTML',
+    reply_markup: { inline_keyboard: memberButtons },
+  })
+}
+
+export async function handleRedirect(taskId: string, chatId: number, messageId: number): Promise<void> {
+  const supabase = getServiceClient()
+  const { data: task } = await supabase.from('tasks').select('workspace_id').eq('id', taskId).maybeSingle()
+  if (!task) return
+
+  const { data: workspace } = await supabase.from('workspaces').select('owner_id').eq('id', task.workspace_id).maybeSingle()
+  if (!workspace) return
+
+  const { data: roles } = await supabase
+    .from('roles')
+    .select('id, name, type, is_authority, telegram_chat_id, status')
+    .eq('owner_id', workspace.owner_id)
+    .eq('status', 'linked')
+    .order('is_authority', { ascending: false })
+    .order('name')
+
+  if (!roles || roles.length === 0) {
+    await bot.sendMessage(chatId, 'No linked team members available.')
+    return
+  }
+
+  const roleIds = roles.map(r => r.id)
+  await startRoutingSession(String(chatId), taskId, 'redirecting', JSON.stringify(roleIds))
+
+  const memberButtons = roles.slice(0, 10).map((r, i) => ([{
+    text: `${r.is_authority ? '\u2b50 ' : ''}${r.name} (${r.type})`,
+    callback_data: `${taskId}:r_${i}`,
+  }]))
+  memberButtons.push([{ text: 'Cancel', callback_data: `${taskId}:r_cancel` }])
+
+  await bot.sendMessage(chatId, '<b>Redirect to:</b>\nSelect a team member to redirect this task to:', {
+    parse_mode: 'HTML',
+    reply_markup: { inline_keyboard: memberButtons },
+  })
+}
+
+export async function handleRouteSelect(taskId: string, chatId: number, messageId: number, index: number): Promise<void> {
+  const session = await getActiveSession(String(chatId))
+  if (!session || !session.target_action) {
+    await bot.editMessageText('Session expired. Please try again from the task notification.', { chat_id: chatId, message_id: messageId })
+    return
+  }
+
+  const roleIds: string[] = JSON.parse(session.target_action)
+  if (index < 0 || index >= roleIds.length) {
+    await bot.editMessageText('Invalid selection.', { chat_id: chatId, message_id: messageId })
+    await deleteSession(session.id)
+    return
+  }
+
+  const targetRoleId = roleIds[index]
+  const supabase = getServiceClient()
+
+  const { data: targetRole } = await supabase.from('roles').select('id, name, telegram_chat_id').eq('id', targetRoleId).maybeSingle()
+  if (!targetRole) {
+    await bot.editMessageText('Member not found.', { chat_id: chatId, message_id: messageId })
+    await deleteSession(session.id)
+    return
+  }
+
+  await supabase.from('tasks').update({ role_id: targetRoleId, status: 'pending' }).eq('id', taskId)
+
+  const actionLabel = session.state === 'routing' ? 'Routed' : 'Redirected'
+  await bot.editMessageText(`${actionLabel} to <b>${targetRole.name}</b>.`, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML' })
+
+  if (targetRole.telegram_chat_id) {
+    const { data: task } = await supabase.from('tasks').select('*, workspaces(name, owner_id), categories(emoji)').eq('id', taskId).maybeSingle()
+    if (task) {
+      const wsData = task.workspaces as { name: string; owner_id: string } | null
+      const companyName = wsData?.owner_id ? await getCompanyName(wsData.owner_id) : 'SlackFlow'
+
+      const { notifyAssignee } = await import('@/lib/telegram/notify')
+      await notifyAssignee({
+        chatId: targetRole.telegram_chat_id,
+        taskId: task.id,
+        workspaceName: wsData?.name || 'Unknown',
+        companyName,
+        channel: task.channel,
+        senderName: task.sender_name || 'Unknown',
+        category: task.category || 'General',
+        categoryEmoji: (task.categories as { emoji: string } | null)?.emoji || '',
+        confidence: task.category_confidence || 0,
+        originalText: task.original_text,
+        draftText: task.draft_text,
+      })
+    }
+  }
+
+  const { data: task2 } = await supabase.from('tasks').select('workspace_id').eq('id', taskId).maybeSingle()
+  if (task2) {
+    await supabase.from('activity_log').insert({
+      workspace_id: task2.workspace_id,
+      task_id: taskId,
+      actor: 'telegram',
+      action: session.state === 'routing' ? 'task_routed' : 'task_redirected',
+      details: { target_role: targetRole.name },
+    })
+  }
+
+  await deleteSession(session.id)
+}
+
+export async function handleRouteCancel(taskId: string, chatId: number, messageId: number): Promise<void> {
+  const session = await getActiveSession(String(chatId))
+  if (session) await deleteSession(session.id)
+  await bot.editMessageText('Routing cancelled.', { chat_id: chatId, message_id: messageId })
 }

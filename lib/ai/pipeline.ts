@@ -22,6 +22,9 @@ interface PipelineResult {
   promptVersion: string
   actionable?: boolean
   additionalTaskIds?: string[]
+  title?: string
+  expectedBehavior?: string
+  reporter?: string
 }
 
 export async function runAiPipeline(input: PipelineInput): Promise<PipelineResult> {
@@ -153,6 +156,9 @@ export async function runAiPipeline(input: PipelineInput): Promise<PipelineResul
       promptVersion: result.promptVersion,
       actionable: true,
       additionalTaskIds,
+      title: primary.title,
+      expectedBehavior: primary.expected_behavior,
+      reporter: primary.reporter,
     }
   } catch (err) {
     log.error({ err }, 'AI pipeline failed, using fallback')

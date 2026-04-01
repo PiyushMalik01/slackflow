@@ -151,6 +151,12 @@ Posted as a Slack thread reply visible to the client:
 - NO filler: "Thanks for reaching out", "Stay tuned", "We appreciate..."
 - Follow category-specific draft instructions if provided
 
+## STEP 3b: Generate structured entry
+For each intent, also generate these fields:
+- "title": A short title summarizing the request or issue (5-10 words max). Examples: "Login page broken on mobile", "Add dark mode to dashboard", "Billing page not loading"
+- "expected_behavior": What the reporter expects should happen (1 sentence). Leave empty string if not clear from the message.
+- "reporter": The sender's name (from the message metadata).
+
 ## Response Format
 Return JSON:
 {
@@ -162,7 +168,10 @@ Return JSON:
       "reasoning": "<1 sentence>",
       "draft": "<1-2 sentence acknowledgment>",
       "tone": "<professional|friendly|urgent>",
-      "excerpt": "<the part of the message this intent covers>"
+      "excerpt": "<the part of the message this intent covers>",
+      "title": "<short title, 5-10 words>",
+      "expected_behavior": "<what reporter expects, or empty string>",
+      "reporter": "<sender name>"
     }
   ]
 }

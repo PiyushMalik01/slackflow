@@ -7,6 +7,9 @@ const intentSchema = z.object({
   draft: z.string(),
   tone: z.string().optional(),
   excerpt: z.string().optional(),
+  title: z.string().optional(),
+  expected_behavior: z.string().optional(),
+  reporter: z.string().optional(),
 })
 
 export const classifyAndDraftSchema = z.object({

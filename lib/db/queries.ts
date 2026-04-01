@@ -111,7 +111,7 @@ export async function upsertRole(role: RoleInsert) {
 export async function updateRole(
   id: string,
   ownerId: string,
-  update: Partial<Pick<RoleInsert, 'name' | 'type' | 'telegram_chat_id'>>
+  update: Partial<Pick<RoleInsert, 'name' | 'type' | 'telegram_chat_id' | 'is_authority'>>
 ) {
   const db = getServiceClient()
   const { error } = await db

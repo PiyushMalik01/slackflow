@@ -38,6 +38,7 @@ interface Role {
   status?: string
   telegram_chat_id?: string
   owner_id: string
+  is_authority?: boolean
   invite_tokens?: { token: string; expires_at: string; used_at: string | null }[]
 }
 
@@ -269,6 +270,22 @@ function MembersTab({ initialRoles }: { initialRoles: Role[] }) {
               role={role}
               onEdit={() => setEditingId(role.id)}
               onDelete={() => setDeleteMemberId(role.id)}
+              onToggleAuthority={async () => {
+                const res = await fetch('/api/roles', {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ id: role.id, is_authority: !role.is_authority }),
+                })
+                if (res.ok) {
+                  setRoles(prev =>
+                    prev.map(r => r.id === role.id ? { ...r, is_authority: !r.is_authority } : r)
+                  )
+                  toast.success(role.is_authority ? 'Authority removed' : 'Marked as authority')
+                  router.refresh()
+                } else {
+                  toast.error('Failed to update authority status')
+                }
+              }}
             />
           )
         )}
@@ -313,10 +330,12 @@ function MemberItem({
   role,
   onEdit,
   onDelete,
+  onToggleAuthority,
 }: {
   role: Role
   onEdit: () => void
   onDelete: () => void
+  onToggleAuthority: () => void
 }) {
   const status = getMemberStatusInfo(role)
   const activeToken = role.invite_tokens?.find(
@@ -330,9 +349,23 @@ function MemberItem({
           <span className={`size-2.5 rounded-full flex-shrink-0 ${status.color}`} />
           <span className="text-sm font-medium">{role.name}</span>
           <Badge variant="secondary" className="text-[10px]">{role.type}</Badge>
+          {role.is_authority && (
+            <Badge variant="secondary" className="text-[10px] bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20">
+              Authority
+            </Badge>
+          )}
           <span className="text-xs text-muted-foreground">{status.label}</span>
         </div>
         <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            className={role.is_authority ? 'text-amber-500' : 'text-muted-foreground'}
+            onClick={onToggleAuthority}
+            title={role.is_authority ? 'Remove authority status' : 'Mark as authority'}
+          >
+            <span className="text-sm">&#11088;</span>
+          </Button>
           <Button variant="ghost" size="icon-xs" onClick={onEdit}>
             <Edit2 className="size-3.5" />
           </Button>

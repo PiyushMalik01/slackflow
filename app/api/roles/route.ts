@@ -17,6 +17,7 @@ const updateSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   type: z.string().min(1).max(50).optional(),
   telegram_chat_id: z.string().max(50).optional().nullable(),
+  is_authority: z.boolean().optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -90,7 +91,9 @@ export async function PUT(req: NextRequest) {
 
     const { id, ...data } = parsed.data
 
-    await updateRole(id, user.id, { ...data, telegram_chat_id: data.telegram_chat_id || null })
+    const updateData: Record<string, unknown> = { ...data, telegram_chat_id: data.telegram_chat_id || null }
+    if (data.is_authority !== undefined) updateData.is_authority = data.is_authority
+    await updateRole(id, user.id, updateData as Parameters<typeof updateRole>[2])
     return jsonOk({ success: true })
   } catch {
     return json500()
