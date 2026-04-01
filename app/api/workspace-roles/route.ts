@@ -24,6 +24,16 @@ export async function POST(req: NextRequest) {
 
     const { workspace_id, category_id, role_id } = parsed.data
 
+    // Validate: category must belong to the workspace owner (not just any user)
+    const svcCheck = getServiceClient()
+    const { data: ws } = await svcCheck.from('workspaces').select('owner_id').eq('id', workspace_id).maybeSingle()
+    if (ws) {
+      const { data: cat } = await svcCheck.from('categories').select('owner_id').eq('id', category_id).maybeSingle()
+      if (cat && cat.owner_id !== ws.owner_id) {
+        return json400('Category does not belong to the workspace owner. Use the workspace owner\'s categories for routing.')
+      }
+    }
+
     if (role_id) {
       await setWorkspaceRole(workspace_id, category_id, role_id, user.id)
 
