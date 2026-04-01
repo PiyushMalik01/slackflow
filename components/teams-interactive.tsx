@@ -716,11 +716,39 @@ function WorkspaceRoutingCard({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="__none__">-- Unassigned --</SelectItem>
-                      {roles.map(role => (
-                        <SelectItem key={role.id} value={role.id}>
-                          {role.name} ({role.type})
-                        </SelectItem>
-                      ))}
+                      {(() => {
+                        // Separate linked (can receive notifications) from unlinked
+                        const linked = roles.filter(r => r.status === 'linked' && r.telegram_chat_id)
+                        const unlinked = roles.filter(r => r.status !== 'linked' || !r.telegram_chat_id)
+                        return (
+                          <>
+                            {linked.length > 0 && (
+                              <>
+                                <div className="px-2 py-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                                  Available
+                                </div>
+                                {linked.map(role => (
+                                  <SelectItem key={role.id} value={role.id}>
+                                    {role.is_authority ? '⭐ ' : ''}{role.name} ({role.type})
+                                  </SelectItem>
+                                ))}
+                              </>
+                            )}
+                            {unlinked.length > 0 && (
+                              <>
+                                <div className="px-2 py-1.5 text-[10px] font-medium text-muted-foreground uppercase tracking-wider mt-1">
+                                  Not linked yet
+                                </div>
+                                {unlinked.map(role => (
+                                  <SelectItem key={role.id} value={role.id} className="text-muted-foreground">
+                                    {role.name} ({role.type}) — pending
+                                  </SelectItem>
+                                ))}
+                              </>
+                            )}
+                          </>
+                        )
+                      })()}
                     </SelectContent>
                   </Select>
                 </div>

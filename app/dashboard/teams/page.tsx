@@ -23,23 +23,44 @@ export default async function TeamsPage() {
   ])
   const workspaces = workspacesFull.map(w => ({ id: w.id, name: w.name, owner_id: w.owner_id }))
 
-  // For shared workspaces: load workspace owner's categories and roles for routing tab
+  // For each workspace: load the OWNER's categories (AI uses these for classification)
+  // and ALL members' roles (anyone in the workspace can be assigned tasks)
   const ownerIds = [...new Set(workspaces.map((w: any) => w.owner_id))]
   const workspaceCategoryMap: Record<string, any[]> = {}
   const workspaceRolesMap: Record<string, any[]> = {}
+
+  // Load owner categories
+  const ownerCatCache: Record<string, any[]> = {}
   await Promise.all(ownerIds.map(async (oid: string) => {
-    const [ownerCats, { data: ownerRoles }] = await Promise.all([
-      getCategories(oid),
-      svc.from('roles').select('*, invite_tokens(token, expires_at, used_at)').eq('owner_id', oid).order('created_at'),
-    ])
-    // Map categories and roles to each workspace owned by this user
-    for (const ws of workspaces) {
-      if (ws.owner_id === oid) {
-        workspaceCategoryMap[ws.id] = ownerCats
-        workspaceRolesMap[ws.id] = ownerRoles || []
-      }
-    }
+    ownerCatCache[oid] = await getCategories(oid)
   }))
+
+  // For each workspace: categories from owner, roles from ALL members
+  for (const ws of workspaces) {
+    workspaceCategoryMap[ws.id] = ownerCatCache[ws.owner_id] || []
+
+    // Get all members of this workspace
+    const { data: members } = await svc
+      .from('workspace_members')
+      .select('user_id')
+      .eq('workspace_id', ws.id)
+
+    const memberIds = members?.map(m => m.user_id) || []
+
+    if (memberIds.length > 0) {
+      // Load roles from ALL workspace members
+      const { data: allRoles } = await svc
+        .from('roles')
+        .select('*, invite_tokens(token, expires_at, used_at)')
+        .in('owner_id', memberIds)
+        .order('is_authority', { ascending: false })
+        .order('name')
+
+      workspaceRolesMap[ws.id] = allRoles || []
+    } else {
+      workspaceRolesMap[ws.id] = []
+    }
+  }
 
   // Build combined roles list: user's own roles + all roles visible via shared workspaces
   // This lets the Members tab show ALL team members the user can see
