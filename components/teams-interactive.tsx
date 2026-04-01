@@ -39,12 +39,14 @@ interface Role {
   telegram_chat_id?: string
   owner_id: string
   is_authority?: boolean
+  _shared_from?: string  // set when this role belongs to another workspace member
   invite_tokens?: { token: string; expires_at: string; used_at: string | null }[]
 }
 
 interface Workspace {
   id: string
   name: string
+  owner_id: string
 }
 
 interface WorkspaceRole {
@@ -58,6 +60,8 @@ interface TeamsClientProps {
   workspaces: Workspace[]
   workspaceRoles: WorkspaceRole[]
   categories: Category[]
+  workspaceCategoryMap: Record<string, Category[]>  // workspace_id -> owner's categories (for routing tab)
+  workspaceRolesMap: Record<string, Role[]>          // workspace_id -> owner's roles (for routing tab)
 }
 
 // -- Main Client --------------------------------------------------------------
@@ -67,6 +71,8 @@ export function TeamsClient({
   workspaces,
   workspaceRoles,
   categories,
+  workspaceCategoryMap,
+  workspaceRolesMap,
 }: TeamsClientProps) {
   return (
     <Tabs defaultValue="members">
@@ -91,6 +97,8 @@ export function TeamsClient({
           roles={initialRoles}
           workspaces={workspaces}
           workspaceRoles={workspaceRoles}
+          workspaceCategoryMap={workspaceCategoryMap}
+          workspaceRolesMap={workspaceRolesMap}
         />
       </TabsContent>
     </Tabs>
@@ -354,25 +362,35 @@ function MemberItem({
               Authority
             </Badge>
           )}
+          {role._shared_from && (
+            <Badge variant="outline" className="text-[10px]">
+              Shared
+            </Badge>
+          )}
           <span className="text-xs text-muted-foreground">{status.label}</span>
         </div>
-        <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            className={role.is_authority ? 'text-amber-500' : 'text-muted-foreground'}
-            onClick={onToggleAuthority}
-            title={role.is_authority ? 'Remove authority status' : 'Mark as authority'}
-          >
-            <span className="text-sm">&#11088;</span>
-          </Button>
-          <Button variant="ghost" size="icon-xs" onClick={onEdit}>
-            <Edit2 className="size-3.5" />
-          </Button>
-          <Button variant="ghost" size="icon-xs" onClick={onDelete} className="hover:text-destructive">
-            <Trash2 className="size-3.5" />
-          </Button>
-        </div>
+        {/* Only show edit/delete for own roles, not shared ones */}
+        {!role._shared_from ? (
+          <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              className={role.is_authority ? 'text-amber-500' : 'text-muted-foreground'}
+              onClick={onToggleAuthority}
+              title={role.is_authority ? 'Remove authority status' : 'Mark as authority'}
+            >
+              <span className="text-sm">&#11088;</span>
+            </Button>
+            <Button variant="ghost" size="icon-xs" onClick={onEdit}>
+              <Edit2 className="size-3.5" />
+            </Button>
+            <Button variant="ghost" size="icon-xs" onClick={onDelete} className="hover:text-destructive">
+              <Trash2 className="size-3.5" />
+            </Button>
+          </div>
+        ) : (
+          <span className="text-[10px] text-muted-foreground">View only</span>
+        )}
       </div>
       <div className="mt-3 pl-[18px]">
         {role.status === 'linked' ? (
@@ -554,11 +572,15 @@ function RoutingTab({
   roles,
   workspaces,
   workspaceRoles,
+  workspaceCategoryMap,
+  workspaceRolesMap,
 }: {
   categories: Category[]
   roles: Role[]
   workspaces: Workspace[]
   workspaceRoles: WorkspaceRole[]
+  workspaceCategoryMap: Record<string, Category[]>
+  workspaceRolesMap: Record<string, Role[]>
 }) {
   if (workspaces.length === 0) {
     return (
@@ -571,7 +593,9 @@ function RoutingTab({
     )
   }
 
-  if (roles.length === 0) {
+  // Check if any workspace has roles available (from workspace owner)
+  const anyWorkspaceHasRoles = workspaces.some(ws => (workspaceRolesMap[ws.id] || []).length > 0)
+  if (!anyWorkspaceHasRoles && roles.length === 0) {
     return (
       <div className="mt-4 py-16 text-center rounded-lg border border-dashed border-border">
         <Users className="size-8 text-muted-foreground mx-auto mb-3" />
@@ -595,8 +619,8 @@ function RoutingTab({
         <WorkspaceRoutingCard
           key={ws.id}
           workspace={ws}
-          categories={categories}
-          roles={roles}
+          categories={workspaceCategoryMap[ws.id] || categories}
+          roles={workspaceRolesMap[ws.id] || roles}
           mappings={workspaceRoles.filter(wr => wr.workspace_id === ws.id)}
         />
       ))}

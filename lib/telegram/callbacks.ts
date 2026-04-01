@@ -236,23 +236,40 @@ export async function handleReassign(taskId: string, chatId: number, messageId: 
   }
 }
 
-export async function handleRoute(taskId: string, chatId: number, messageId: number): Promise<void> {
+// Helper: get all linked team members who can receive Telegram messages
+// Includes roles from ALL workspace members (shared workspace support)
+async function getRoutableMembers(taskId: string) {
   const supabase = getServiceClient()
   const { data: task } = await supabase.from('tasks').select('workspace_id').eq('id', taskId).maybeSingle()
-  if (!task) return
+  if (!task) return null
 
-  const { data: workspace } = await supabase.from('workspaces').select('owner_id').eq('id', task.workspace_id).maybeSingle()
-  if (!workspace) return
+  // Get all members of this workspace
+  const { data: members } = await supabase
+    .from('workspace_members')
+    .select('user_id')
+    .eq('workspace_id', task.workspace_id)
 
+  if (!members || members.length === 0) return null
+
+  const ownerIds = members.map(m => m.user_id)
+
+  // Get all linked roles from all workspace members that have telegram_chat_id
   const { data: roles } = await supabase
     .from('roles')
     .select('id, name, type, is_authority, telegram_chat_id, status')
-    .eq('owner_id', workspace.owner_id)
+    .in('owner_id', ownerIds)
     .eq('status', 'linked')
+    .not('telegram_chat_id', 'is', null)
     .order('is_authority', { ascending: false })
     .order('name')
 
-  if (!roles || roles.length === 0) {
+  return roles && roles.length > 0 ? roles : null
+}
+
+export async function handleRoute(taskId: string, chatId: number, messageId: number): Promise<void> {
+  const roles = await getRoutableMembers(taskId)
+
+  if (!roles) {
     await bot.sendMessage(chatId, 'No linked team members available to route to.')
     return
   }
@@ -266,29 +283,16 @@ export async function handleRoute(taskId: string, chatId: number, messageId: num
   }]))
   memberButtons.push([{ text: 'Cancel', callback_data: `${taskId}:r_cancel` }])
 
-  await bot.sendMessage(chatId, '<b>Route to:</b>\nSelect a team member to route this task to:', {
+  await bot.sendMessage(chatId, '<b>Route to:</b>\nSelect a team member to hand this task to:', {
     parse_mode: 'HTML',
     reply_markup: { inline_keyboard: memberButtons },
   })
 }
 
 export async function handleRedirect(taskId: string, chatId: number, messageId: number): Promise<void> {
-  const supabase = getServiceClient()
-  const { data: task } = await supabase.from('tasks').select('workspace_id').eq('id', taskId).maybeSingle()
-  if (!task) return
+  const roles = await getRoutableMembers(taskId)
 
-  const { data: workspace } = await supabase.from('workspaces').select('owner_id').eq('id', task.workspace_id).maybeSingle()
-  if (!workspace) return
-
-  const { data: roles } = await supabase
-    .from('roles')
-    .select('id, name, type, is_authority, telegram_chat_id, status')
-    .eq('owner_id', workspace.owner_id)
-    .eq('status', 'linked')
-    .order('is_authority', { ascending: false })
-    .order('name')
-
-  if (!roles || roles.length === 0) {
+  if (!roles) {
     await bot.sendMessage(chatId, 'No linked team members available.')
     return
   }
@@ -302,7 +306,7 @@ export async function handleRedirect(taskId: string, chatId: number, messageId: 
   }]))
   memberButtons.push([{ text: 'Cancel', callback_data: `${taskId}:r_cancel` }])
 
-  await bot.sendMessage(chatId, '<b>Redirect to:</b>\nSelect a team member to redirect this task to:', {
+  await bot.sendMessage(chatId, '<b>Redirect to:</b>\nSelect a team member. They will be notified and the task will be reassigned:', {
     parse_mode: 'HTML',
     reply_markup: { inline_keyboard: memberButtons },
   })
@@ -332,38 +336,47 @@ export async function handleRouteSelect(taskId: string, chatId: number, messageI
     return
   }
 
-  await supabase.from('tasks').update({ role_id: targetRoleId, status: 'pending' }).eq('id', taskId)
+  const { data: task } = await supabase.from('tasks').select('*, workspaces(name, owner_id), categories(emoji)').eq('id', taskId).maybeSingle()
+  const wsData = task?.workspaces as { name: string; owner_id: string } | null
+  const companyName = wsData?.owner_id ? await getCompanyName(wsData.owner_id) : 'SlackFlow'
 
-  const actionLabel = session.state === 'routing' ? 'Routed' : 'Redirected'
-  await bot.editMessageText(`${actionLabel} to <b>${targetRole.name}</b>.`, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML' })
+  if (session.state === 'routing') {
+    // ROUTE: Hand the task to someone else. You're done with it.
+    await supabase.from('tasks').update({ role_id: targetRoleId, status: 'pending' }).eq('id', taskId)
+    await bot.editMessageText(`Routed to <b>${targetRole.name}</b>. Task handed off.`, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML' })
 
-  if (targetRole.telegram_chat_id) {
-    const { data: task } = await supabase.from('tasks').select('*, workspaces(name, owner_id), categories(emoji)').eq('id', taskId).maybeSingle()
-    if (task) {
-      const wsData = task.workspaces as { name: string; owner_id: string } | null
-      const companyName = wsData?.owner_id ? await getCompanyName(wsData.owner_id) : 'SlackFlow'
+  } else {
+    // REDIRECT: Reassign but also notify the original person that someone else is now handling it.
+    const oldRoleId = task?.role_id
+    await supabase.from('tasks').update({ role_id: targetRoleId, status: 'pending' }).eq('id', taskId)
+    await bot.editMessageText(`Redirected to <b>${targetRole.name}</b>. You'll be kept in the loop.`, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML' })
 
-      const { notifyAssignee } = await import('@/lib/telegram/notify')
-      await notifyAssignee({
-        chatId: targetRole.telegram_chat_id,
-        taskId: task.id,
-        workspaceName: wsData?.name || 'Unknown',
-        companyName,
-        channel: task.channel,
-        senderName: task.sender_name || 'Unknown',
-        category: task.category || 'General',
-        categoryEmoji: (task.categories as { emoji: string } | null)?.emoji || '',
-        confidence: task.category_confidence || 0,
-        originalText: task.original_text,
-        draftText: task.draft_text,
-      })
-    }
+    // Notify the original sender (current user) with a confirmation
+    await bot.sendMessage(chatId, `You redirected a task from <b>#${task?.channel || 'unknown'}</b> to <b>${targetRole.name}</b>. They'll take it from here.`, { parse_mode: 'HTML' })
   }
 
-  const { data: task2 } = await supabase.from('tasks').select('workspace_id').eq('id', taskId).maybeSingle()
-  if (task2) {
+  // Notify the target person with full task context
+  if (targetRole.telegram_chat_id && task) {
+    const { notifyAssignee } = await import('@/lib/telegram/notify')
+    await notifyAssignee({
+      chatId: targetRole.telegram_chat_id,
+      taskId: task.id,
+      workspaceName: wsData?.name || 'Unknown',
+      companyName,
+      channel: task.channel,
+      senderName: task.sender_name || 'Unknown',
+      category: task.category || 'General',
+      categoryEmoji: (task.categories as { emoji: string } | null)?.emoji || '',
+      confidence: task.category_confidence || 0,
+      originalText: task.original_text,
+      draftText: task.draft_text,
+    })
+  }
+
+  // Log activity
+  if (task) {
     await supabase.from('activity_log').insert({
-      workspace_id: task2.workspace_id,
+      workspace_id: task.workspace_id,
       task_id: taskId,
       actor: 'telegram',
       action: session.state === 'routing' ? 'task_routed' : 'task_redirected',

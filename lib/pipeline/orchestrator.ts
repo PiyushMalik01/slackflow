@@ -272,23 +272,18 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
     role = await resolveRole(workspaceId, categoryId)
   }
 
-  // If no role found by exact ID, try by category name across all workspace_roles
+  // If no role found by exact ID, the category might be from a different owner.
+  // Look up the workspace owner's categories by name to find the correct category_id.
   if (!role && !mentionOverride && aiResult.category) {
-    const { data: routingByName } = await supabase
-      .from('workspace_roles')
-      .select('*, roles(*), categories(name)')
-      .eq('workspace_id', workspaceId)
-
-    if (routingByName) {
-      const match = routingByName.find((wr: any) =>
-        (wr.categories?.name || '').toLowerCase() === aiResult.category.toLowerCase()
-      )
-      if (match?.roles) {
-        role = match.roles as typeof role
-        // Also update categoryId to the matched one for consistency
-        if (match.category_id) {
-          await supabase.from('tasks').update({ category_id: match.category_id }).eq('id', task.id)
-        }
+    const ownerCategories = await getCategories(workspace.owner_id)
+    const ownerCat = ownerCategories.find(
+      (c) => c.name.toLowerCase() === aiResult.category.toLowerCase()
+    )
+    if (ownerCat && ownerCat.id !== categoryId) {
+      role = await resolveRole(workspaceId, ownerCat.id)
+      if (role) {
+        // Update task with the correct owner category_id
+        await supabase.from('tasks').update({ category_id: ownerCat.id }).eq('id', task.id)
       }
     }
   }
