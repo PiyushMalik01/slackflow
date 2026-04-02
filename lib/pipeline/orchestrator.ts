@@ -330,6 +330,26 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
       action: 'notification_skipped',
       details: { reason: `${role.name} has no Telegram linked`, role_name: role.name },
     })
+    // Alert the authority about the unlinked member
+    if (authority?.telegram_chat_id) {
+      try {
+        const { bot } = await import('@/lib/telegram/bot')
+        await bot.sendMessage(
+          authority.telegram_chat_id,
+          `<b>Notification failed</b> — ${companyName}\n\n` +
+          `Task from <b>#${channelName}</b> was assigned to <b>${role.name}</b>, but they haven't linked their Telegram yet.\n\n` +
+          `Ask them to connect via their invite link, or route the task to someone else.`,
+          {
+            parse_mode: 'HTML',
+            reply_markup: {
+              inline_keyboard: [[
+                { text: 'Route to...', callback_data: `${task.id}:route` },
+              ]],
+            },
+          }
+        )
+      } catch { /* ignore */ }
+    }
   }
   if (role?.telegram_chat_id) {
     try {

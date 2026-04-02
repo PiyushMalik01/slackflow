@@ -340,19 +340,33 @@ export async function handleRouteSelect(taskId: string, chatId: number, messageI
   const wsData = task?.workspaces as { name: string; owner_id: string } | null
   const companyName = wsData?.owner_id ? await getCompanyName(wsData.owner_id) : 'SlackFlow'
 
+  // Get the OLD assignee before reassigning (to notify them)
+  const oldRoleId = task?.role_id
+  let oldRole: { name: string; telegram_chat_id: string | null } | null = null
+  if (oldRoleId && oldRoleId !== targetRoleId) {
+    const { data } = await supabase.from('roles').select('name, telegram_chat_id').eq('id', oldRoleId).maybeSingle()
+    oldRole = data
+  }
+
+  // Reassign the task
+  await supabase.from('tasks').update({ role_id: targetRoleId, status: 'pending' }).eq('id', taskId)
+
   if (session.state === 'routing') {
-    // ROUTE: Hand the task to someone else. You're done with it.
-    await supabase.from('tasks').update({ role_id: targetRoleId, status: 'pending' }).eq('id', taskId)
     await bot.editMessageText(`Routed to <b>${targetRole.name}</b>. Task handed off.`, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML' })
-
   } else {
-    // REDIRECT: Reassign but also notify the original person that someone else is now handling it.
-    const oldRoleId = task?.role_id
-    await supabase.from('tasks').update({ role_id: targetRoleId, status: 'pending' }).eq('id', taskId)
     await bot.editMessageText(`Redirected to <b>${targetRole.name}</b>. You'll be kept in the loop.`, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML' })
-
-    // Notify the original sender (current user) with a confirmation
     await bot.sendMessage(chatId, `You redirected a task from <b>#${task?.channel || 'unknown'}</b> to <b>${targetRole.name}</b>. They'll take it from here.`, { parse_mode: 'HTML' })
+  }
+
+  // Notify the OLD assignee that they've been unassigned
+  if (oldRole?.telegram_chat_id && oldRole.telegram_chat_id !== String(chatId)) {
+    try {
+      await bot.sendMessage(
+        oldRole.telegram_chat_id,
+        `Task from <b>#${task?.channel || 'unknown'}</b> (${companyName}) has been reassigned to <b>${targetRole.name}</b>. No action needed from you.`,
+        { parse_mode: 'HTML' }
+      )
+    } catch { /* ignore */ }
   }
 
   // Notify the target person with full task context
