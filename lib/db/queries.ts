@@ -114,6 +114,12 @@ export async function updateRole(
   update: Partial<Pick<RoleInsert, 'name' | 'type' | 'telegram_chat_id' | 'is_authority'>>
 ) {
   const db = getServiceClient()
+
+  // Guard: if telegram_chat_id is being cleared, also reset status to pending_link
+  if (update.telegram_chat_id === null || update.telegram_chat_id === '') {
+    (update as any).status = 'pending_link'
+  }
+
   const { error } = await db
     .from('roles')
     .update(update)

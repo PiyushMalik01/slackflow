@@ -302,6 +302,17 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
   }).eq('id', task.id)
 
   // Notify assignee via Telegram
+  if (role && !role.telegram_chat_id) {
+    log.warn({ roleId: role.id, roleName: role.name }, 'Role assigned but has no Telegram — member needs to link their account')
+    // Log this as a warning in activity so admin sees it on dashboard
+    await supabase.from('activity_log').insert({
+      workspace_id: workspaceId,
+      task_id: task.id,
+      actor: 'system',
+      action: 'notification_skipped',
+      details: { reason: `${role.name} has no Telegram linked`, role_name: role.name },
+    })
+  }
   if (role?.telegram_chat_id) {
     try {
       const msgId = await notifyAssignee({
