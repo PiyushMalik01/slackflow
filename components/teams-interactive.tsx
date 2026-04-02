@@ -209,9 +209,28 @@ function MembersTab({ initialRoles }: { initialRoles: Role[] }) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [deleteMemberId, setDeleteMemberId] = useState<string | null>(null)
 
+  const unlinkedMembers = roles.filter(r => !r._shared_from && (r.status !== 'linked' || !r.telegram_chat_id))
+  const unlinkedCount = unlinkedMembers.length
+
   return (
     <div className="space-y-4 mt-4">
       <TeamInviteSection />
+
+      {/* Warning: unlinked members */}
+      {unlinkedCount > 0 && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
+          <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-amber-700 dark:text-amber-300">
+              {unlinkedCount} {unlinkedCount === 1 ? 'member hasn\'t' : 'members haven\'t'} connected Telegram
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {unlinkedMembers.map(r => r.name).join(', ')} — they won't receive task notifications until they link via invite.
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold">Members</h2>
