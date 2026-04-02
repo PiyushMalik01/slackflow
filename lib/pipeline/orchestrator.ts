@@ -288,23 +288,23 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
     }
   }
 
-  // Authority fallback: if no specific role is mapped for this category,
-  // route to the authority member (the default handler for all unrouted tasks)
-  if (!role && !mentionOverride) {
-    const { data: authorityRole } = await supabase
-      .from('roles')
-      .select('id, name, telegram_chat_id, is_authority')
-      .eq('owner_id', workspace.owner_id)
-      .eq('is_authority', true)
-      .eq('status', 'linked')
-      .not('telegram_chat_id', 'is', null)
-      .limit(1)
-      .maybeSingle()
+  // Find authority member (always notified as supervisor)
+  let authority: typeof role = null
+  const { data: authorityRole } = await supabase
+    .from('roles')
+    .select('id, name, telegram_chat_id, is_authority')
+    .eq('owner_id', workspace.owner_id)
+    .eq('is_authority', true)
+    .eq('status', 'linked')
+    .not('telegram_chat_id', 'is', null)
+    .limit(1)
+    .maybeSingle()
+  if (authorityRole) authority = authorityRole
 
-    if (authorityRole) {
-      log.info({ authority: authorityRole.name, category: aiResult.category }, 'No specific routing — falling back to authority')
-      role = authorityRole
-    }
+  // If no specific role mapped, authority becomes the assigned person
+  if (!role && authority) {
+    log.info({ authority: authority.name, category: aiResult.category }, 'No specific routing — authority is the assignee')
+    role = authority
   }
 
   if (role) {
@@ -313,7 +313,7 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
     log.warn({ workspaceId, categoryId, category: aiResult.category }, 'No role mapped and no authority — task will be unassigned')
   }
 
-  // Update task with category + role info (AI pipeline already set draft/category fields)
+  // Update task with category + role info
   await supabase.from('tasks').update({
     category_id: categoryId,
     role_id: role?.id || null,
@@ -323,7 +323,6 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
   // Notify assignee via Telegram
   if (role && !role.telegram_chat_id) {
     log.warn({ roleId: role.id, roleName: role.name }, 'Role assigned but has no Telegram — member needs to link their account')
-    // Log this as a warning in activity so admin sees it on dashboard
     await supabase.from('activity_log').insert({
       workspace_id: workspaceId,
       task_id: task.id,
@@ -355,6 +354,34 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
       }
     } catch (err) {
       log.error({ err }, 'Failed to notify assignee')
+    }
+  }
+
+  // Always notify authority (supervisor ping) — unless authority IS the assignee
+  if (authority?.telegram_chat_id && authority.id !== role?.id) {
+    try {
+      const assigneeName = role?.name || 'Unassigned'
+      const { bot } = await import('@/lib/telegram/bot')
+      const authorityMsg =
+        `<b>New ${aiResult.category}</b> — ${companyName}\n` +
+        `#${channelName} from ${senderName}\n` +
+        `Assigned to: <b>${assigneeName}</b>\n\n` +
+        `${(event.text || '').substring(0, 150)}${(event.text || '').length > 150 ? '...' : ''}`
+
+      await bot.sendMessage(authority.telegram_chat_id, authorityMsg, {
+        parse_mode: 'HTML',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              { text: 'Route to...', callback_data: `${task.id}:route` },
+              { text: 'View task', callback_data: `${task.id}:view_original` },
+            ],
+          ],
+        },
+      })
+      log.info({ authority: authority.name, assignee: assigneeName }, 'Authority notified')
+    } catch (err) {
+      log.error({ err }, 'Failed to notify authority')
     }
   }
 
