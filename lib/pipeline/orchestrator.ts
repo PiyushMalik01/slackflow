@@ -288,10 +288,29 @@ export async function handleSlackMessage(event: SlackEvent, workspaceId: string)
     }
   }
 
+  // Authority fallback: if no specific role is mapped for this category,
+  // route to the authority member (the default handler for all unrouted tasks)
+  if (!role && !mentionOverride) {
+    const { data: authorityRole } = await supabase
+      .from('roles')
+      .select('id, name, telegram_chat_id, is_authority')
+      .eq('owner_id', workspace.owner_id)
+      .eq('is_authority', true)
+      .eq('status', 'linked')
+      .not('telegram_chat_id', 'is', null)
+      .limit(1)
+      .maybeSingle()
+
+    if (authorityRole) {
+      log.info({ authority: authorityRole.name, category: aiResult.category }, 'No specific routing — falling back to authority')
+      role = authorityRole
+    }
+  }
+
   if (role) {
     log.info({ roleId: role.id, roleName: role.name, hasTelegram: !!role.telegram_chat_id }, 'Role resolved for category')
   } else {
-    log.warn({ workspaceId, categoryId, category: aiResult.category }, 'No role mapped for this category — task will be unassigned')
+    log.warn({ workspaceId, categoryId, category: aiResult.category }, 'No role mapped and no authority — task will be unassigned')
   }
 
   // Update task with category + role info (AI pipeline already set draft/category fields)
