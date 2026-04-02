@@ -5,6 +5,7 @@ import { RealtimeProvider } from '@/components/realtime-provider'
 import { AuthListener } from '@/components/auth-listener'
 import { Suspense } from 'react'
 import { ProfileSetupGate } from '@/components/profile-setup-gate'
+import { ThemeToggle } from '@/components/theme-toggle'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const user = await getAuthUser()
@@ -44,10 +45,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <AuthListener />
       <AppSidebar />
       <div className="md:ml-64">
-        {/* Mobile top bar */}
-        <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b bg-background/95 backdrop-blur px-4 md:hidden">
-          <MobileSidebarTrigger />
-          <span className="text-sm font-semibold">SlackFlow</span>
+        {/* Top bar */}
+        <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b bg-background/95 backdrop-blur px-4">
+          <div className="flex items-center gap-3 md:hidden">
+            <MobileSidebarTrigger />
+            <span className="text-sm font-semibold">SlackFlow</span>
+          </div>
+          <div className="hidden md:block" />
+          <ThemeToggle />
         </header>
         <main className="p-4 md:p-6 lg:p-8">
           <RealtimeProvider>
