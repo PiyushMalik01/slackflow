@@ -56,6 +56,27 @@ function isSettingsActive(pathname: string) {
   return pathname.startsWith('/dashboard/settings')
 }
 
+function useUnlinkedMemberCount() {
+  const [count, setCount] = useState(0)
+  useEffect(() => {
+    async function load() {
+      const supabase = createBrowserClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase
+        .from('roles')
+        .select('id, status, telegram_chat_id')
+        .eq('owner_id', user.id)
+      const unlinked = data?.filter((r: { status: string; telegram_chat_id: string | null }) => r.status !== 'linked' || !r.telegram_chat_id) || []
+      setCount(unlinked.length)
+    }
+    load()
+    const interval = setInterval(load, 60000)
+    return () => clearInterval(interval)
+  }, [])
+  return count
+}
+
 function usePendingTaskCount() {
   const [count, setCount] = useState(0)
   useEffect(() => {
@@ -77,6 +98,7 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
   const router = useRouter()
   const supabase = createBrowserClient()
   const pendingCount = usePendingTaskCount()
+  const unlinkedCount = useUnlinkedMemberCount()
   const [settingsOpen, setSettingsOpen] = useState(isSettingsActive(pathname))
 
   async function handleSignOut() {
@@ -117,6 +139,11 @@ function SidebarContent({ onNavigate }: { onNavigate?: () => void }) {
                 <Badge variant="default" className="ml-auto h-5 min-w-[20px] px-1.5 text-[10px] font-semibold">
                   {pendingCount > 99 ? '99+' : pendingCount}
                 </Badge>
+              )}
+              {item.label === 'Teams' && unlinkedCount > 0 && (
+                <span className="ml-auto flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+                </span>
               )}
             </Link>
           )
