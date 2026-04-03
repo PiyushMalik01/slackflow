@@ -29,7 +29,16 @@ export async function handleApprove(taskId: string, chatId: number, messageId: n
 
   await postReplyToSlack(taskId)
 
-  await bot.editMessageText('Approved and sent to Slack.', { chat_id: chatId, message_id: messageId })
+  // Update message to show approved status but KEEP the original task context
+  const approvedMsg =
+    `<b>Approved</b>\n\n` +
+    `<b>${escapeHtml(task.category || 'Task')}</b> from <b>#${escapeHtml(task.channel)}</b>\n` +
+    `From: ${escapeHtml(task.sender_name || 'Unknown')}\n\n` +
+    `<b>Message:</b>\n${escapeHtml((task.original_text || '').substring(0, 200))}${(task.original_text || '').length > 200 ? '...' : ''}\n\n` +
+    `<b>Reply sent:</b>\n<i>${escapeHtml((task.edited_text || task.draft_text || '').substring(0, 200))}</i>\n\n` +
+    `Sent to Slack`
+
+  await bot.editMessageText(approvedMsg, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML' })
 
   // Notify team group
   const { data: workspace } = await supabase.from('workspaces').select('team_group_chat_id, name, owner_id').eq('id', task.workspace_id).maybeSingle()
@@ -57,8 +66,16 @@ export async function handleEdit(taskId: string, chatId: number, messageId: numb
 
 export async function handleDismiss(taskId: string, chatId: number, messageId: number): Promise<void> {
   const supabase = getServiceClient()
+  const { data: taskInfo } = await supabase.from('tasks').select('category, channel, sender_name, original_text').eq('id', taskId).maybeSingle()
   await supabase.from('tasks').update({ status: 'dismissed' }).eq('id', taskId)
-  await bot.editMessageText('Task dismissed.', { chat_id: chatId, message_id: messageId })
+
+  const dismissedMsg =
+    `<b>Dismissed</b>\n\n` +
+    `<b>${escapeHtml(taskInfo?.category || 'Task')}</b> from <b>#${escapeHtml(taskInfo?.channel || 'unknown')}</b>\n` +
+    `From: ${escapeHtml(taskInfo?.sender_name || 'Unknown')}\n\n` +
+    `<b>Message:</b>\n${escapeHtml((taskInfo?.original_text || '').substring(0, 200))}${(taskInfo?.original_text || '').length > 200 ? '...' : ''}\n\n` +
+    `No reply sent`
+  await bot.editMessageText(dismissedMsg, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML' })
 
   // Notify team group
   const { data: task } = await supabase.from('tasks').select('workspace_id, channel, category, sender_name, role_id').eq('id', taskId).maybeSingle()
@@ -142,7 +159,17 @@ export async function handleEditConfirm(taskId: string, chatId: number, messageI
   await supabase.from('tasks').update({ edited_text: session.draft_text, status: 'edited' }).eq('id', taskId)
   await postReplyToSlack(taskId)
   await deleteSession(session.id)
-  await bot.editMessageText('Custom response sent to Slack.', { chat_id: chatId, message_id: messageId })
+
+  // Get task context for the confirmation message
+  const { data: taskInfo } = await supabase.from('tasks').select('category, channel, sender_name, original_text').eq('id', taskId).maybeSingle()
+  const editedMsg =
+    `<b>Edited &amp; Sent</b>\n\n` +
+    `<b>${escapeHtml(taskInfo?.category || 'Task')}</b> from <b>#${escapeHtml(taskInfo?.channel || 'unknown')}</b>\n` +
+    `From: ${escapeHtml(taskInfo?.sender_name || 'Unknown')}\n\n` +
+    `<b>Message:</b>\n${escapeHtml((taskInfo?.original_text || '').substring(0, 200))}${(taskInfo?.original_text || '').length > 200 ? '...' : ''}\n\n` +
+    `<b>Your reply:</b>\n<i>${escapeHtml((session.draft_text || '').substring(0, 200))}</i>\n\n` +
+    `Sent to Slack`
+  await bot.editMessageText(editedMsg, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML' })
 
   // Notify team group
   const { data: task } = await supabase.from('tasks').select('workspace_id, channel, category, sender_name, role_id').eq('id', taskId).maybeSingle()
